@@ -1,0 +1,73 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Acronym Eva",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/1_dataset_evaluate/acronym_eva.py",
+            "console": "integratedTerminal",
+            "args": [
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Isaac Sim Eva",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/multigrippergrasp_examples/my_eva_standalone.py",
+            "console": "integratedTerminal",
+            "env": {
+                "RESOURCE_NAME": "IsaacSim"
+            },
+            "args": [
+                "--exp_name", "Acronym_Eva"
+            ],
+            "python": "/home/red0orange/.local/share/ov/pkg/isaac-sim-4.0.0/kit/python/bin/python3",
+            "envFile": "${workspaceFolder}/.vscode/.standalone_examples.env",
+            "preLaunchTask": "setup_python_env",
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "env": {
+                "RESOURCE_NAME": "IsaacSim"
+            },
+            "python": "/home/red0orange/.local/share/ov/pkg/isaac-sim-4.0.0/kit/python/bin/python3",
+            "envFile": "${workspaceFolder}/.vscode/.standalone_examples.env",
+            "preLaunchTask": "setup_python_env",
+            "justMyCode": false
+        },
+        {
+            "name": "Normal: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Attach (windows-x86_64/linux-x86_64)",
+            "type": "python",
+            "request": "attach",
+            "port": 3000,
+            "host": "localhost"
+        },
+    ]
+}
