@@ -29,12 +29,13 @@ def sevendof2T(xyz, xyzw):
 if __name__ == '__main__':
     viser = ViserForGrasp()
 
-    gripper_mesh_path = "/home/red0orange/Projects/handgrasp_ws/urdf_to_obj/h5_hand.obj"
+    gripper_mesh_path = "/home/red0orange/Projects/handgrasp_ws/3rd_urdf_to_obj/franka_hand.obj"
     obj_dir = "/home/red0orange/Projects/handgrasp_ws/0_Data/IsaacSimGraspEvaCache/obj_bak"
     # 读取文件
-    with open("/home/red0orange/Projects/handgrasp_ws/0_Data/IsaacSimGraspEvaCache/Acronym_Eva/grasps_jsons/8_bf7c50d9200aff3232ff36fce9527751.json", "r") as f:
+    with open("/home/red0orange/Projects/handgrasp_ws/0_Data/IsaacSimGraspEvaCache/Acronym_Eva/grasps_jsons/0_60e606fd9c2bb3df9ecfbc3b1dcb847f.json", "r") as f:
         data_dict = json.load(f)
-        
+
+        gripper = data_dict["gripper"]
         object_id = data_dict["object_id"]
         grasp_poses = np.array(data_dict["pose"])
         # fall_time = np.array(data_dict["fall_time"])
@@ -56,8 +57,14 @@ if __name__ == '__main__':
             viser.add_mesh(gripper_mesh)
 
             test_T = Tog
-            test_T = update_pose(test_T, rotate=np.pi, rotate_axis="y")
-            test_T = update_pose(test_T, rotate=np.pi/2, rotate_axis="z")
+            if gripper == "h5_hand":
+                test_T = update_pose(test_T, rotate=np.pi, rotate_axis="y")
+                test_T = update_pose(test_T, rotate=np.pi/2, rotate_axis="z")
+            elif gripper == "franka_panda":
+                test_T = update_pose(test_T, rotate=np.pi/2, rotate_axis="z")
+                test_T = update_pose(test_T, translate=[0, 0, 0.05])
+            else:
+                raise ValueError(f"Unknown gripper {gripper}")
             viser.vis_grasp_scene([test_T], mesh=mesh, max_grasp_num=40, z_direction=True)
             viser.wait_for_reset()
 

@@ -20,8 +20,8 @@ class args:
     # json_dir = '/home/red0orange/projects/docker_isaac_sim_grasping/data/MultiGripperGrasp/graspit_grasps/h5_hand'
     # output_dir = '/home/red0orange/projects/docker_isaac_sim_grasping/data/docker_data/multigrippergrasp_output'
 
-    num_w = 20
-    device = 2
+    num_w = 200
+    device = 0
     test_time = 3
     print_results = False
     controller = 'position'

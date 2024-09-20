@@ -29,13 +29,14 @@ def sevendof2T(xyz, xyzw):
 if __name__ == '__main__':
     viser = ViserForGrasp()
 
-    gripper_mesh_path = "/home/huangdehao/Projects/handgraspnet_ws/0_grasp_dataset_process/data/MultiGripperGrasp/grippers/h5_hand/mesh_merged.obj"
+    gripper_mesh_path = "/home/red0orange/Projects/handgrasp_ws/3rd_urdf_to_obj/franka_hand.obj"
     gripper_mesh = o3d.io.read_triangle_mesh(gripper_mesh_path)
-    obj_dir = "/home/huangdehao/Projects/handgraspnet_ws/0_grasp_dataset_process/data/MultiGripperGrasp/Object_Models/GoogleScannedObjects"
+    obj_dir = "/home/red0orange/Projects/handgrasp_ws/0_Data/MultiGripperGrasp/Object_Models/YCB"
     # 读取文件
-    with open("/home/huangdehao/Projects/handgraspnet_ws/0_grasp_dataset_process/data/MultiGripperGrasp/h5_hand-ASICS_GEL1140V_WhiteBlackSilver copy.json", "r") as f:
+    with open("/home/red0orange/Projects/handgrasp_ws/0_Data/MultiGripperGrasp/franka_panda-003_cracker_box_success.json", "r") as f:
         data_dict = json.load(f)
         
+        gripper = data_dict["gripper"]
         object_id = data_dict["object_id"]
         grasp_poses = np.array(data_dict["pose"])
         fall_time = np.array(data_dict["fall_time"])
@@ -44,7 +45,8 @@ if __name__ == '__main__':
 
         grasp_Ts = [sevendof2T(pose[:3], np.array([pose[4], pose[5], pose[6], pose[3]])) for pose in grasp_poses]
 
-        obj_mesh_path = os.path.join(obj_dir, object_id, "meshes/model.obj")
+        # obj_mesh_path = os.path.join(obj_dir, object_id, "meshes/model.obj")
+        obj_mesh_path = os.path.join(obj_dir, object_id, "textured_simple.obj")
         mesh = o3d.io.read_triangle_mesh(obj_mesh_path)
 
         for Tog in grasp_Ts:
@@ -58,8 +60,15 @@ if __name__ == '__main__':
             viser.add_mesh(gripper_mesh)
 
             test_T = grasp_Ts[0]
-            test_T = update_pose(test_T, rotate=np.pi, rotate_axis="y")
-            test_T = update_pose(test_T, rotate=np.pi/2, rotate_axis="z")
+            if gripper == "h5_hand":
+                test_T = update_pose(test_T, rotate=np.pi, rotate_axis="y")
+                test_T = update_pose(test_T, rotate=np.pi/2, rotate_axis="z")
+            elif gripper == "franka_panda":
+                test_T = update_pose(test_T, rotate=np.pi/2, rotate_axis="z")
+                test_T = update_pose(test_T, translate=[0, 0, 0.05])
+            else:
+                raise ValueError(f"Unknown gripper {gripper}")
+
             viser.vis_grasp_scene([test_T], mesh=mesh, max_grasp_num=40, z_direction=True)
             viser.wait_for_reset()
 

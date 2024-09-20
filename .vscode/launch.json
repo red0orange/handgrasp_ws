@@ -28,7 +28,7 @@
             "name": "Python: Isaac Sim Eva",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/multigrippergrasp_examples/my_eva_standalone.py",
+            "program": "${workspaceFolder}/3rd_multigrippergrasp_examples/my_eva_standalone.py",
             "console": "integratedTerminal",
             "env": {
                 "RESOURCE_NAME": "IsaacSim"

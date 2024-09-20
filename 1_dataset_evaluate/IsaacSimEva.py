@@ -162,7 +162,9 @@ class IsaacSimEva:
             shutil.rmtree(self.json_save_dir)
             os.makedirs(self.json_save_dir)
         h5_dofs = [-1.37881, 1.37881, 1.37881, -1.37881]
-        gripper = "h5_hand"
+        franka_dofs = [0, 0]
+        gripper = "franka_panda"
+        # gripper = "h5_hand"
         for data_id, data in tqdm(self.data_dict.items(), total=len(self.data_dict), desc="Saving grasps json"):
             object_name = data['mesh_md5']
 
@@ -174,12 +176,23 @@ class IsaacSimEva:
             # @note BUG 有可能四元数顺序不对，需要调整
             for i in range(len(grasp_Ts)):
                 grasp_T = grasp_Ts[i]
-                grasp_T = update_pose(grasp_T, rotate=-np.pi/2, rotate_axis="z")
-                grasp_T = update_pose(grasp_T, rotate=-np.pi, rotate_axis="y")
+                if gripper == "h5_hand":
+                    grasp_T = update_pose(grasp_T, rotate=-np.pi/2, rotate_axis="z")
+                    grasp_T = update_pose(grasp_T, rotate=-np.pi, rotate_axis="y")
+                elif gripper == "franka_panda":
+                    grasp_T = update_pose(grasp_T, rotate=-np.pi/2, rotate_axis="z")
+                else:
+                    raise ValueError(f"Unknown gripper {gripper}")
                 grasp_Ts[i] = grasp_T
 
             grasp_poses = [T2sevendof(T).tolist() for T in grasp_Ts]
-            dofs = [h5_dofs for _ in range(len(grasp_Ts))]
+            if gripper == "h5_hand":
+                dofs = [h5_dofs for _ in range(len(grasp_Ts))]
+            elif gripper == "franka_panda":
+                dofs = [franka_dofs for _ in range(len(grasp_Ts))]
+            else:
+                raise ValueError(f"Unknown gripper {gripper}")
+
             cur_data_dict = {
                 "object_id": object_name,
                 "pose": grasp_poses,
