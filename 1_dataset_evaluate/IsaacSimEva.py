@@ -104,6 +104,16 @@ class IsaacSimEva:
                 mesh = mesh.transform(mesh_T)
                 pc = np.array(mesh.vertices)
 
+                grasp_success = data['grasp_success']
+                success_grasp_Ts = np.where(grasp_success)[0]
+                success_grasp_Ts = [grasp_Ts[i] for i in success_grasp_Ts]
+                print(f"Success grasp num: {len(success_grasp_Ts)}")
+                for i in range(len(success_grasp_Ts)):
+                    print("current grasp id: ", i)
+                    grasp_T = success_grasp_Ts[i]
+                    viser_grasp.vis_grasp_scene(max_grasp_num=1, pc=pc, grasp_Ts=[grasp_T], mesh=mesh)
+                    viser_grasp.wait_for_reset()
+
                 viser_grasp.vis_grasp_scene(max_grasp_num=40, pc=pc, grasp_Ts=grasp_Ts, mesh=mesh)
                 viser_grasp.wait_for_reset()
 
@@ -180,7 +190,9 @@ class IsaacSimEva:
                     grasp_T = update_pose(grasp_T, rotate=-np.pi/2, rotate_axis="z")
                     grasp_T = update_pose(grasp_T, rotate=-np.pi, rotate_axis="y")
                 elif gripper == "franka_panda":
-                    grasp_T = update_pose(grasp_T, rotate=-np.pi/2, rotate_axis="z")
+                    # grasp_T = update_pose(grasp_T, rotate=-np.pi/2, rotate_axis="z")
+                    # grasp_T = update_pose(grasp_T, translate=[0, 0, -0.005])
+                    pass
                 else:
                     raise ValueError(f"Unknown gripper {gripper}")
                 grasp_Ts[i] = grasp_T

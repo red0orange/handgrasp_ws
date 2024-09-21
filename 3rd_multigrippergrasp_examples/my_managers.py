@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from controllers import controller_dict
+import m_utils
 import json
 import time
 
@@ -112,7 +113,6 @@ class Manager:
             "Allegro": [0, 0.5, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],
             "HumanHand": [0, 0, 0, 0, 0, 1, 1, 1, 1, 0.75, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             "shadow_hand": [0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1],
-            # "h5_hand": [1,-1,0,0]
             "h5_hand": [1,-1,0,0]
         }
 

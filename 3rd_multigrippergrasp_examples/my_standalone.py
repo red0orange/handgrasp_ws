@@ -5,7 +5,7 @@ class args:
     objects_dir = '/home/red0orange/Data/handgrasp_data/MultiGripperGrasp/google_objects_usd'
     output_dir = '/home/red0orange/Data/handgrasp_data/MultiGripperGrasp/output'
 
-    num_w = 40
+    num_w = 200
     device = 0
     test_time = 3
     print_results = False
@@ -19,7 +19,7 @@ force_reset = args.force_reset
 #launch Isaac Sim before any other imports
 from omni.isaac.kit import SimulationApp
 config= {
-    "headless": False,
+    "headless": True,
     'max_bounces':0,
     'fast_shutdown': True,
     'max_specular_transmission_bounces':0,
@@ -185,9 +185,10 @@ if __name__ == "__main__":
 
     #Load json files 
     json_files = [pos_json for pos_json in os.listdir(json_directory) if pos_json.endswith('.json')]
+    json_files = sorted(json_files)
 
     # for j in json_files:
-    for j in ["/home/red0orange/Projects/handgrasp_ws/0_Data/MultiGripperGrasp/franka_panda-003_cracker_box_success.json"]:
+    for j in ["franka_panda-004_sugar_box.json"]:
         print("Running: ", j)
 
         #path to output .json file

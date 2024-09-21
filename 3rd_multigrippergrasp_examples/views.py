@@ -1,10 +1,11 @@
 #External Libraries
+#External Libraries
 import numpy as np
 import time
 
 
 #Custom Classes and utils
-from m_utils import te_batch, re_batch
+from m_utils import te_batch,re_batch
 
 #Omni Libraries
 from omni.isaac.core.utils.numpy.rotations import quats_to_rot_matrices
@@ -13,9 +14,6 @@ from omni.isaac.core.prims.rigid_prim import RigidPrimView
 from omni.isaac.core.articulations import  ArticulationView
 from omni.isaac.core.utils.transformations import pose_from_tf_matrix, tf_matrices_from_poses
 from omni.isaac.core.prims import XFormPrimView
-from omni.isaac.dynamic_control import _dynamic_control
-dc = _dynamic_control.acquire_dynamic_control_interface()
-
 
 class View():
     """ISAAC SIM VIEWS Class 
@@ -32,7 +30,6 @@ class View():
     """
     def __init__(self, work_path, contact_names_expr, num_w,  manager, world, test_time, mass):
         #Create Views
-        # @note View 能够同时索引多个 prim，这里的 prim_paths_expr 是一个通配符表达式，可以匹配多个 prim
         self.objects = world.scene.add(
             RigidPrimView(
                 prim_paths_expr= work_path[:-1]+"*"+"/object/base_link", 
@@ -40,7 +37,7 @@ class View():
                 prepare_contact_sensors = True, 
                 contact_filter_prim_paths_expr  = contact_names_expr, 
                 reset_xform_properties = False,
-                disable_stablization = False, max_contact_count=1000))
+                disable_stablization = False))
         self.grippers = world.scene.add(
             ArticulationView(
                 prim_paths_expr = work_path[:-1]+"*"+"/gripper",
@@ -53,9 +50,7 @@ class View():
         self.world = world
         ws_poses = self.grippers.get_world_poses()
         self.ws_Ts = tf_matrices_from_poses(ws_poses[0],ws_poses[1])
-        # self.current_times = np.zeros((num_w,1))
-        # self.current_times = np.full((num_w,1), -np.inf)
-        self.current_times = np.full((num_w,1), -1.0)
+        self.current_times = np.zeros((num_w,1))
         self.grasp_set_up = np.zeros((num_w,1))
         self.last_step_gsetup = np.zeros_like(self.grasp_set_up)
         self.reported_slips = np.zeros((num_w,1))
@@ -69,9 +64,7 @@ class View():
         self.current_job_IDs=[]
         self.dofs = []
         self.t = time.time()
-
-        # Add physics Step
-        # @note 核心代码，添加一个 physics callback，这个 callback 会在每个 physics step 之前执行
+        #Add physics Step
         world.add_physics_callback("physics_steps", callback_fn=self.physics_step)
         
     def get_jobs(self,n):
@@ -103,29 +96,25 @@ class View():
         self.objects.set_world_poses(self.init_positions, self.init_rotations)
 
         # Get max efforts and dofs
-        # dc = self.world.dc_interface # @note different from the original code
+        dc = self.world.dc_interface
         articulation = dc.get_articulation(self.work_path+"/gripper")
-        self.dof_props = dc.get_articulation_dof_properties(articulation)  # @note drive 栏的信息（包括 max vel, max eff, pid 参数）
+        self.dof_props = dc.get_articulation_dof_properties(articulation)
         self.close_positions = np.zeros_like(self.dofs)
         max_efforts = np.zeros_like(self.dofs)
-
-        close_mask = self.manager.close_mask  # @note 提前设置好的关闭方向
+        close_mask = self.manager.close_mask
         #print(self.dof_props)
         for i in range(len(self.dof_props)):
             if (close_mask[i]==0):
                 max_efforts[:,i] = self.dof_props[i][6]
-                self.close_positions[:,i]=(self.dofs[:,i])  # @note 如果为 0，则是指定的位置
+                self.close_positions[:,i]=(self.dofs[:,i])
             elif (close_mask[i]>0):
                 max_efforts[:,i]= self.dof_props[i][6]
-                self.close_positions[:,i]=(self.dof_props[i][3])  # 如果是正方向，就设置为最大值
+                self.close_positions[:,i]=(self.dof_props[i][3])
             elif (close_mask[i]<0):
                 max_efforts[:,i]= -self.dof_props[i][6]
-                self.close_positions[:,i]=(self.dof_props[i][2])  # 如果是负方向，就设置为最小值
+                self.close_positions[:,i]=(self.dof_props[i][2]) 
             else: 
                 raise ValueError("clos_dir arrays for grippers can only have 1,-1 and 0 values indicating closing direction")
-        
-        # @note 重置夹爪
-        self.grippers.set_joint_positions([0.04, 0.04])
 
         # Initialize controller
         self.controller= self.manager.controller(close_mask, self.test_time, max_efforts, self.grippers)
@@ -133,7 +122,7 @@ class View():
         self.new_dofs = np.zeros_like(self.dofs)
         return
     
-    def physics_step(self, step_size):
+    def physics_step(self,step_size):
         """ Function runs before every physics frame
 
         step_size: time since last physics step. Depends on physics_dt
@@ -159,50 +148,26 @@ class View():
         # Rigid Body Probing, mark grasps as ready
         rb_ind = np.argwhere(np.multiply(np.squeeze(self.grasp_set_up==0 ),tmp_active)==1)[:,0]
         if (len(rb_ind)>0):
-            # @note 通过这个让物体保持静止？？？？
-            # self.objects.disable_gravities()
             self.objects.set_velocities([0,0,0,0,0,0],rb_ind) #
             #self.objects_parents.set_world_poses(self.init_positions[rb_ind], self.init_rotations[rb_ind],rb_ind)
             self.objects.set_world_poses(self.init_positions[rb_ind], self.init_rotations[rb_ind],rb_ind)
             tmp = np.count_nonzero(np.sum(self.objects.get_contact_force_matrix(rb_ind),axis =2),axis=1)
-
-            # object_force = np.sum(self.objects.get_contact_force_matrix(rb_ind),axis =2)
-            # object_force = (object_force > 0.1).astype(int)
-            # tmp = np.count_nonzero(object_force, axis=1)
-            print("debug 111", tmp[0])
-
-            # print("debug 111", np.max(np.sum(self.objects.get_contact_force_matrix(rb_ind),axis =2), axis=1))
-            # print("debug 444", self.grippers.get_joint_positions(rb_ind)[0], self.grippers.get_joint_velocities()[0])
-            # print("debug 222", )
-            # print("debug 333", self.grippers.get_measured_joint_forces())
-            # print("debug 333", self.grippers.get_measured_joint_efforts())
-            # measured_joint_efforts = self.grippers.get_measured_joint_efforts(rb_ind)
-            # measured_joint_efforts = measured_joint_efforts[:, 0]
-            # cond = (np.abs(measured_joint_efforts) > 1.0)
-            # self.current_times[rb_ind[cond]]=0
-            # self.grasp_set_up[rb_ind[cond]]=1
-            # self.new_dofs[rb_ind[cond]] = self.grippers.get_joint_positions(indices= rb_ind[cond])
-
-
+            
             
             #Update grasp_setup
-            # @note 根据物体受力判断开始启用重力
-            # @note 感觉不如判断夹爪的力反馈啊。
-            # 更新是否要启用重力
             self.current_times[rb_ind[tmp>=self.manager.contact_th]]=0
             self.grasp_set_up[rb_ind[tmp>=self.manager.contact_th]]=1
             self.new_dofs[rb_ind[tmp>=self.manager.contact_th]] = self.grippers.get_joint_positions(indices= rb_ind[tmp>=self.manager.contact_th])
 
         # Apply gripper actions
+        
         set_up_timers = np.zeros_like(self.current_times)
         set_up_timers[g_ind]= self.current_times[g_ind]
         actions = self.controller.forward(self.manager.gripper, set_up_timers, self.grippers, self.close_positions)
         self.grippers.apply_action(actions)
         
         # Update time
-        # 仿真时间
         self.current_times += step_size
-        print("current time: ", self.current_times[0])
 
         # End of testing time
         time_ind = np.argwhere(np.multiply(np.squeeze((self.current_times>self.test_time)),tmp_active))[:,0]
@@ -228,7 +193,6 @@ class View():
         self.manager.report_fall(self.current_job_IDs[finish_ind], self.current_times[finish_ind],self.test_type,self.test_time, self.new_dofs[finish_ind])
         
         # Get new jobs
-        # @note 完成多少个就
         self.dofs[finish_ind], self.current_poses[finish_ind], self.current_job_IDs[finish_ind] =self.get_jobs(len(finish_ind))
         self.current_times[finish_ind] = 0
         self.grasp_set_up[finish_ind] = 0
@@ -250,8 +214,6 @@ class View():
         for i in range(len(self.dof_props)):
             if (self.manager.close_mask[i]==0):
                 self.close_positions[:,i]=(self.dofs[:,i])
-        # @note 重置夹爪
-        self.grippers.set_joint_positions([0.04, 0.04])
         return
 
 
@@ -337,6 +299,7 @@ class V_View():
         self.objects.set_world_poses(self.init_positions, self.init_rotations)
 
         # Get max efforts and dofs
+        dc = self.world.dc_interface
         articulation = dc.get_articulation(self.work_path+"/gripper")
         self.dof_props = dc.get_articulation_dof_properties(articulation)
         self.close_positions = np.zeros_like(self.dofs)

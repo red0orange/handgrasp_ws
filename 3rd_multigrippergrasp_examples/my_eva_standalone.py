@@ -226,6 +226,7 @@ if __name__ == "__main__":
 
     #Load json files 
     json_files = [pos_json for pos_json in os.listdir(json_directory) if pos_json.endswith('.json')]
+    json_files = sorted(json_files)
 
     for j in json_files:
         print("Running: ", j)
@@ -233,8 +234,8 @@ if __name__ == "__main__":
         #path to output .json file
         out_path = os.path.join(output_directory, j)
 
-        if(os.path.exists(out_path)): #Skip completed
-            continue
+        # if(os.path.exists(out_path)): #Skip completed
+        #     continue
 
         # Initialize Manager
         # manager 管理要执行的任务相关信息，不涉及 Isaac 仿真部分

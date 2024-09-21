@@ -1,4 +1,5 @@
 #External Libraries
+#External Libraries
 import numpy as np
 import time
 
@@ -152,26 +153,22 @@ class View():
             #self.objects_parents.set_world_poses(self.init_positions[rb_ind], self.init_rotations[rb_ind],rb_ind)
             self.objects.set_world_poses(self.init_positions[rb_ind], self.init_rotations[rb_ind],rb_ind)
             tmp = np.count_nonzero(np.sum(self.objects.get_contact_force_matrix(rb_ind),axis =2),axis=1)
-
+            
             
             #Update grasp_setup
-            # @note 根据物体受力判断开始启用重力
-            # @note 感觉不如判断夹爪的力反馈啊。
-            # 更新是否要启用重力
             self.current_times[rb_ind[tmp>=self.manager.contact_th]]=0
             self.grasp_set_up[rb_ind[tmp>=self.manager.contact_th]]=1
             self.new_dofs[rb_ind[tmp>=self.manager.contact_th]] = self.grippers.get_joint_positions(indices= rb_ind[tmp>=self.manager.contact_th])
 
         # Apply gripper actions
+        
         set_up_timers = np.zeros_like(self.current_times)
         set_up_timers[g_ind]= self.current_times[g_ind]
         actions = self.controller.forward(self.manager.gripper, set_up_timers, self.grippers, self.close_positions)
         self.grippers.apply_action(actions)
         
         # Update time
-        # 仿真时间
         self.current_times += step_size
-        # print("current time: ", self.current_times[0])
 
         # End of testing time
         time_ind = np.argwhere(np.multiply(np.squeeze((self.current_times>self.test_time)),tmp_active))[:,0]
@@ -218,8 +215,6 @@ class View():
         for i in range(len(self.dof_props)):
             if (self.manager.close_mask[i]==0):
                 self.close_positions[:,i]=(self.dofs[:,i])
-        # @note 重置夹爪
-        # self.grippers.set_joint_positions([0.04, 0.04])
         return
 
 
@@ -305,6 +300,7 @@ class V_View():
         self.objects.set_world_poses(self.init_positions, self.init_rotations)
 
         # Get max efforts and dofs
+        dc = self.world.dc_interface
         articulation = dc.get_articulation(self.work_path+"/gripper")
         self.dof_props = dc.get_articulation_dof_properties(articulation)
         self.close_positions = np.zeros_like(self.dofs)

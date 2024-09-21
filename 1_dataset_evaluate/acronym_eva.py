@@ -27,6 +27,8 @@ if __name__ == '__main__':
     #         "mesh_path": mesh_path,
     #         "mesh_scale": mesh_scale,
     #         "mesh_T": np.eye(4),
+
+    #         "grasp_success": grasp_success,
     #     }
     # np.save("tmp.npy", data_dict)
 

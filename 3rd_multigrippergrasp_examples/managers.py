@@ -1,6 +1,7 @@
 import numpy as np
 import os
 from controllers import controller_dict
+import m_utils
 import json
 import time
 
@@ -21,8 +22,6 @@ class Manager:
                  world=None):
         # Loading files and urdfs
         self.world = world
-
-        # @note 选定该 json 文件中的 gripper 和 object
         print("Loading File: ", grasps_path)
         with open(grasps_path) as fd:
             self.json = json.load(fd)
@@ -223,9 +222,6 @@ class Manager:
         else:
             self.fall_time[job_ID] = value
             self.final_dofs[job_ID] = new_dofs
-
-            print("Fall Time: ", value)
-            print("Final dofs: ", new_dofs)
             
             if self.test_type == None:
                 self.test_type = test_type  
@@ -483,14 +479,11 @@ class T_Manager:
         Args: 
             n: number of new jobs required
         """
-        # 输入 n，就取出新的没被抓取的 job
-
         job_IDs = []
         tmp = []
         poses = []
         dofs = []
         for i in range(n):
-            # n_jobs 是抓取总的数量
             if(self.job_pointer<self.n_jobs):
                 job_IDs.append(self.job_pointer)
                 tmp.append(self.job_pointer)
@@ -499,7 +492,6 @@ class T_Manager:
                 tmp.append(0)
                 job_IDs.append(-1)
 
-        # 
         poses = np.asarray(self.grasps[tmp,:])
         dofs = np.asarray(self.dofs[tmp,:])
         job_IDs = np.asarray(job_IDs)
