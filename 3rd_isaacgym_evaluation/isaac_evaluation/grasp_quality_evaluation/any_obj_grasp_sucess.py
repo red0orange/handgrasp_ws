@@ -123,9 +123,9 @@ class AnyGraspSuccessEvaluator():
             distance = (hand_pos - obj_pos).pow(2).sum(-1).pow(.5)
 
             # @note BUG
-            print('Distance: {}'.format(distance))
-            if distance <2.0:
-            # if distance <0.3:
+            # print('Distance: {}'.format(distance))
+            # if distance <2.0:
+            if distance <0.3:
                 self.success_cases +=1
 
 
@@ -747,7 +747,7 @@ class AnySimpleObject():
         obj_assets = self._set_assets()
         self.handle = gym.create_actor(env, obj_assets, pose, obj_name,
                                        group=env_number, filter=collision_group, segmentationId=segmentationId)
-        print('Object Handle: {}'.format(self.handle))
+        # print('Object Handle: {}'.format(self.handle))
         self.gym.set_actor_scale(self.env, self.handle, scale)
         pass
 

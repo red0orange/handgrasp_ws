@@ -14,6 +14,7 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 if __name__ == '__main__':
+    cache_dir = "/home/red0orange/Projects/handgrasp_ws/0_Data/IsaacGymCache/obj_cache"
     test_data_path = "/home/red0orange/Projects/handgrasp_ws/tmp.npy"
     data_dict = np.load(test_data_path, allow_pickle=True).item()
 
@@ -21,6 +22,7 @@ if __name__ == '__main__':
     viser_grasp = ViserForGrasp()
 
     device = "cuda:0"
+    n_envs = 20
     for data_id, data in data_dict.items():
         obj_mesh_path = data['mesh_path']
         mesh_scale = data['mesh_scale']
@@ -52,7 +54,7 @@ if __name__ == '__main__':
             viser_grasp.wait_for_reset()
 
 
-        tmp_obj_mesh_path = os.path.join(cur_dir, "tmp.obj")
+        tmp_obj_mesh_path = os.path.join(cache_dir, "tmp_{}.obj".format(data_id))
         mesh = o3d.io.read_triangle_mesh(obj_mesh_path)
         mesh = mesh.scale(mesh_scale, center=[0, 0, 0])
         mesh.transform(mesh_T)
@@ -65,12 +67,11 @@ if __name__ == '__main__':
         o3d.io.write_triangle_mesh(tmp_obj_mesh_path, mesh)
 
         grasp_Ts = grasp_Ts[:20]
-        for i, _ in enumerate(grasp_Ts):
-            pass
 
         scales = [1.0] * len(grasp_Ts)
         grasp_evaluator = AnyGraspSuccessEvaluator(obj_mesh_path=tmp_obj_mesh_path, rotations=None, scales=scales, 
-                                                n_envs=len(grasp_Ts), viewer=True, device=device, enable_rel_trafo=False)
+                                                n_envs=n_envs, viewer=True, device=device, enable_rel_trafo=False)
         success_cases = grasp_evaluator.eval_set_of_grasps(torch.tensor(grasp_Ts, device=device))
-        
-        exit()
+        print(f"Success rate: {success_cases}/{len(grasp_Ts)}")
+
+        grasp_evaluator.grasping_env.kill()
