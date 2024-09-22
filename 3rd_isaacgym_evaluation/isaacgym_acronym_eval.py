@@ -57,6 +57,7 @@ class IsaacGymGraspEva(object):
         self.device = device
 
         self.viser_grasp = ViserForGrasp()
+        self.break_flag = False
         pass
     
     def eval(self, debug_vis=True):
@@ -84,7 +85,7 @@ class IsaacGymGraspEva(object):
             for i, grasp_T in enumerate(grasp_Ts):
                 grasp_Ts[i][:3, 3] -= mesh_center
 
-            if debug_vis:
+            if debug_vis and (not self.break_flag):
                 pc = np.array(mesh.vertices)
                 print(f"Grasp num: {len(grasp_Ts)}")
                 for i in range(len(grasp_Ts)):
@@ -97,6 +98,7 @@ class IsaacGymGraspEva(object):
                     self.viser_grasp.vis_grasp_scene(max_grasp_num=1, pc=pc, grasp_Ts=[grasp_T], mesh=mesh)
                     break_flag = self.viser_grasp.wait_for_reset()
                     if break_flag:
+                        self.break_flag = True
                         break
 
                 # viser_grasp.vis_grasp_scene(max_grasp_num=40, pc=pc, grasp_Ts=grasp_Ts, mesh=mesh)
