@@ -64,6 +64,7 @@ class AnyGraspSuccessEvaluator():
 
     def eval_set_of_grasps(self, H):
         n_grasps = H.shape[0]
+        self.success_flags = np.zeros(n_grasps)
 
         for i in range(0, n_grasps, self.n_envs):
             print('iteration: {}'.format(i))
@@ -71,7 +72,7 @@ class AnyGraspSuccessEvaluator():
             batch_H = H[i:i+self.n_envs,...]
             self.eval_batch(batch_H)
 
-        return self.success_cases
+        return self.success_cases, self.success_flags
 
     def eval_batch(self, H):
 
@@ -116,7 +117,7 @@ class AnyGraspSuccessEvaluator():
         torch.cuda.empty_cache()
 
     def _compute_success(self, s):
-        for si in s:
+        for i, si in enumerate(s):
             hand_pos = si['hand_pos']
             obj_pos  = si['obj_pos']
             ## Check How close they are ##
@@ -126,6 +127,7 @@ class AnyGraspSuccessEvaluator():
             # print('Distance: {}'.format(distance))
             # if distance <2.0:
             if distance <0.3:
+                self.success_flags[i] = 1
                 self.success_cases +=1
 
 
