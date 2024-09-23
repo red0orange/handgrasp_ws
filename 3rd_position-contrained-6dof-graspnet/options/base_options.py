@@ -20,7 +20,7 @@ class BaseOptions:
         self.parser.add_argument(
             '--dataset_root_folder', '-d',
             type=str,
-            default='/home/huangdehao/Projects/position-contrained-6dof-graspnet/dataset/dataset',
+            default='/home/red0orange/Projects/handgrasp_ws/3rd_position-contrained-6dof-graspnet/dataset/grasp_CONG',
             help='path to root directory of the dataset.')
         self.parser.add_argument('--num_objects_per_batch',
                                  type=int,
