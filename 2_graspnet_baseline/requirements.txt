@@ -1,0 +1,17 @@
+tqdm==4.66.3
+trimesh==3.6.30
+numpy==1.22.0
+pyrender==0.1.39
+matplotlib
+easydict==1.9
+opencv_python
+tensorboardX==2.0
+python-fcl
+rtree
+
+mayavi
+h5py
+PyYAML
+
+# pointnet2_ops==3.0.0
+# torch==1.4.0+cu100 -f <https://download.pytorch.org/whl/torch_stable.html>

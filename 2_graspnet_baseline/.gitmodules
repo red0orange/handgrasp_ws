@@ -1,0 +1,9 @@
+[submodule "pyrender"]
+	path = renderer
+	url = git@github.com:mmatl/pyopengl.git
+[submodule "manifold"]
+	path = manifold
+	url = https://github.com/hjwdzh/Manifold
+[submodule "pointnet"]
+	path = Pointnet2_PyTorch
+	url = git@github.com:erikwijmans/Pointnet2_PyTorch.git
