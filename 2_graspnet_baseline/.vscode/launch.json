@@ -17,11 +17,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/train.py",
             "console": "integratedTerminal",
-            "args": [
-                "--arch", "vae",
-                // "--dataset_root_folder", "${workspaceFolder}/data/data/unified_grasp_data"
-                "--dataset_root_folder", "/home/huangdehao/Projects/handgrasp_ws/3rd_position-contrained-6dof-graspnet/dataset/grasp_CONG"
-            ],
+            "args": [],
             "env": {
                 "CUDA_VISIBLE_DEVICES": "2"
             }

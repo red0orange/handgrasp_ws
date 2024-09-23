@@ -15,6 +15,8 @@ from tqdm import tqdm
 import trimesh
 import trimesh.transformations as tra
 
+proj_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 class Object(object):
     """Represents a graspable object."""
@@ -83,8 +85,8 @@ class PandaGripper(object):
             q = self.default_pregrasp_configuration
 
         self.q = q
-        fn_base = root_folder + 'gripper_models/panda_gripper/hand.stl'
-        fn_finger = root_folder + 'gripper_models/panda_gripper/finger.stl'
+        fn_base = os.path.join(proj_dir, 'gripper_models/panda_gripper/hand.stl')
+        fn_finger = os.path.join(proj_dir, 'gripper_models/panda_gripper/finger.stl')
         self.base = trimesh.load(fn_base)
         self.finger_l = trimesh.load(fn_finger)
         self.finger_r = self.finger_l.copy()

@@ -7,13 +7,29 @@ from test import run_test
 import threading
 
 import os
+import sys
+
+cur_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(cur_dir, "data")
+cong_data_dir = os.path.join(data_dir, "grasp_CONG")
+shapenetsem_dir = os.path.join(data_dir, "obj_ShapeNetSem/models-OBJ/models")
 
 
 def main():
+    # @note 数据集路径、模型选择
+    sys.argv.append('--dataset_root_folder')
+    sys.argv.append(cong_data_dir)
+    sys.argv.append('--arch')
+    # sys.argv.append('vae')
+    sys.argv.append('evaluator')
+
     opt = TrainOptions().parse()
     if opt == None:
         return
     opt.validate = False
+    opt.caching = False
+    opt.mesh_root_folder = shapenetsem_dir
+
 
     dataset = DataLoader(opt)
     dataset_size = len(dataset) * opt.num_grasps_per_object
@@ -24,7 +40,7 @@ def main():
         epoch_start_time = time.time()
         iter_data_time = time.time()
         epoch_iter = 0
-        dataset.dataset.renderer.renderer = None
+        # dataset.dataset.renderer.renderer = None
         for i, data in enumerate(dataset):
             iter_start_time = time.time()
             if total_steps % opt.print_freq == 0:

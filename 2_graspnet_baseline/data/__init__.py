@@ -12,8 +12,10 @@ def CreateDataset(opt):
         from data.constrained_grasp_sampling_data import ConstrainedGraspSamplingData
         dataset = ConstrainedGraspSamplingData(opt)
     else:
-        from data.grasp_evaluator_data import GraspEvaluatorData
-        dataset = GraspEvaluatorData(opt)
+        # from data.grasp_evaluator_data import GraspEvaluatorData
+        # dataset = GraspEvaluatorData(opt)
+        from data.constrained_grasp_evaluator_data import ConstrainedGraspEvaluatorData
+        dataset = ConstrainedGraspEvaluatorData(opt)
     return dataset
 
 
