@@ -137,7 +137,7 @@ class BaseOptions:
             '--pointnet_radius',
             help='Radius for ball query for PointNet++, just the first layer',
             type=float,
-            default=0.02)
+            default=0.01)
         self.parser.add_argument(
             '--pointnet_nclusters',
             help=

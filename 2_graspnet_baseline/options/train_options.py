@@ -21,7 +21,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument(
             '--run_test_freq',
             type=int,
-            default=10,
+            default=5,
             help='frequency of running test in training script')
         self.parser.add_argument(
             '--continue_train',

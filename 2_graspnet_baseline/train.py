@@ -5,13 +5,15 @@ from models import create_model
 from utils.writer import Writer
 from test import run_test
 import threading
+from tqdm import tqdm
 
 import os
 import sys
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(cur_dir, "data")
-cong_data_dir = os.path.join(data_dir, "grasp_CONG")
+# cong_data_dir = os.path.join(data_dir, "grasp_CONG")
+cong_data_dir = os.path.join(data_dir, "grasp_CONG_small")
 shapenetsem_dir = os.path.join(data_dir, "obj_ShapeNetSem/models-OBJ/models")
 
 
@@ -22,12 +24,16 @@ def main():
     sys.argv.append('--arch')
     # sys.argv.append('vae')
     sys.argv.append('evaluator')
+    # sys.argv.append('--continue_train')
+    # sys.argv.append('True')
+    sys.argv.append('--num_threads')
+    sys.argv.append('16')
 
     opt = TrainOptions().parse()
     if opt == None:
         return
     opt.validate = False
-    opt.caching = False
+    opt.caching = True
     opt.mesh_root_folder = shapenetsem_dir
 
 
@@ -41,7 +47,7 @@ def main():
         iter_data_time = time.time()
         epoch_iter = 0
         # dataset.dataset.renderer.renderer = None
-        for i, data in enumerate(dataset):
+        for i, data in tqdm(enumerate(dataset), total=len(dataset)):
             iter_start_time = time.time()
             if total_steps % opt.print_freq == 0:
                 t_data = iter_start_time - iter_data_time
