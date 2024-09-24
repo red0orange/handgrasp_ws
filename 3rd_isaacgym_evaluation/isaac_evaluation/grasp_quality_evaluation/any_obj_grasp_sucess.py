@@ -45,6 +45,7 @@ class AnyGraspSuccessEvaluator():
                                             viewer = viewer, device=self.device)
 
         self.success_cases = 0
+        self.batch_idx = 0
 
     def reset(self):
         self.success_cases = 0
@@ -67,12 +68,19 @@ class AnyGraspSuccessEvaluator():
         self.success_flags = np.zeros(n_grasps)
 
         for i in range(0, n_grasps, self.n_envs):
+            self.batch_idx = i
             print('iteration: {}'.format(i))
 
             batch_H = H[i:i+self.n_envs,...]
+
+            if batch_H.shape[0] < self.n_envs:
+                fake_H = torch.eye(4, device=self.device)[None,...].repeat(self.n_envs-batch_H.shape[0], 1, 1)
+                fake_H[:, :3, 3] = torch.tensor([0,0,0.15], device=self.device)
+                batch_H = torch.cat([batch_H, fake_H], dim=0)
+            
             self.eval_batch(batch_H)
 
-        return self.success_cases, self.success_flags
+        return self.success_cases, self.success_flags[:n_grasps]
 
     def eval_batch(self, H):
 
@@ -127,7 +135,7 @@ class AnyGraspSuccessEvaluator():
             # print('Distance: {}'.format(distance))
             # if distance <2.0:
             if distance <0.3:
-                self.success_flags[i] = 1
+                self.success_flags[self.batch_idx * self.n_envs + i] = 1
                 self.success_cases +=1
 
 

@@ -15,7 +15,7 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 if __name__ == "__main__":
-    work_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/log/epoch_199_20240923-232338_detectiondiffusion"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_199_20240923-232338_detectiondiffusion"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     # checkpoint_path = os.path.join(work_dir, "model_epoch_75.pth")
@@ -42,55 +42,55 @@ if __name__ == "__main__":
 
     print("Evaluating")
     viser_for_grasp = ViserForGrasp()
-    model.eval()
-    results = []
-    grasp_per_obj = 10
-    for data in tqdm(dataloader, total=len(dataloader)):
-        # ori_xyz, xyz, gt_T, _, _ = data
-        filename, xyz, gt_T, mesh_T = data[0], data[1], data[2], data[3]
-        filename = filename[0]
+    # model.eval()
+    # results = []
+    # grasp_per_obj = 10
+    # for data in tqdm(dataloader, total=len(dataloader)):
+    #     # ori_xyz, xyz, gt_T, _, _ = data
+    #     filename, xyz, gt_T, mesh_T = data[0], data[1], data[2], data[3]
+    #     filename = filename[0]
 
-        xyz = xyz.float().cuda()
-        pred = model.batch_detect_and_sample(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale)
-        xyz = xyz.cpu().numpy()
+    #     xyz = xyz.float().cuda()
+    #     pred = model.batch_detect_and_sample(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale)
+    #     xyz = xyz.cpu().numpy()
 
-        batch_size = pred.shape[0]
-        num_grasp = pred.shape[1]
-        pred = pred.reshape(-1, pred.shape[-1])  # 先展平
-        num_pose = pred.shape[0]
-        if not rot6d_rep:
-            raise NotImplementedError
-        else:
-            rotation = rotation_6d_to_matrix_np(pred[:, :6])
-            rotation = np.concatenate((rotation, np.zeros((num_pose, 1, 3), dtype=np.float32)), axis=1)
-            translation = np.expand_dims(np.concatenate((pred[:, 6:], np.ones((num_pose, 1), dtype=np.float32)), axis=1), axis=2)
-        grasp_Ts = np.concatenate((rotation, translation), axis=2)
-        grasp_Ts = grasp_Ts.reshape(batch_size, num_grasp, 4, 4)
+    #     batch_size = pred.shape[0]
+    #     num_grasp = pred.shape[1]
+    #     pred = pred.reshape(-1, pred.shape[-1])  # 先展平
+    #     num_pose = pred.shape[0]
+    #     if not rot6d_rep:
+    #         raise NotImplementedError
+    #     else:
+    #         rotation = rotation_6d_to_matrix_np(pred[:, :6])
+    #         rotation = np.concatenate((rotation, np.zeros((num_pose, 1, 3), dtype=np.float32)), axis=1)
+    #         translation = np.expand_dims(np.concatenate((pred[:, 6:], np.ones((num_pose, 1), dtype=np.float32)), axis=1), axis=2)
+    #     grasp_Ts = np.concatenate((rotation, translation), axis=2)
+    #     grasp_Ts = grasp_Ts.reshape(batch_size, num_grasp, 4, 4)
 
-        for batch_i in range(batch_size):
-            bathc_i_filename = filename[batch_i]
-            batch_i_xyz = xyz[batch_i]
-            batch_i_grasp_Ts = grasp_Ts[batch_i]
-            batch_i_mesh_T = mesh_T[batch_i].cpu().numpy()
+    #     for batch_i in range(batch_size):
+    #         bathc_i_filename = filename[batch_i]
+    #         batch_i_xyz = xyz[batch_i]
+    #         batch_i_grasp_Ts = grasp_Ts[batch_i]
+    #         batch_i_mesh_T = mesh_T[batch_i].cpu().numpy()
 
-            vis_xyz, vis_grasp_Ts = batch_i_xyz.copy(), batch_i_grasp_Ts.copy()
-            vis_xyz /= dataset.scale
-            vis_grasp_Ts[:, :3, 3] /= dataset.scale
-            batch_i_mesh_T[:3, 3] /= dataset.scale
+    #         vis_xyz, vis_grasp_Ts = batch_i_xyz.copy(), batch_i_grasp_Ts.copy()
+    #         vis_xyz /= dataset.scale
+    #         vis_grasp_Ts[:, :3, 3] /= dataset.scale
+    #         batch_i_mesh_T[:3, 3] /= dataset.scale
 
-            # # debug vis
-            # viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=50)
-            # viser_for_grasp.wait_for_reset()
+    #         # # debug vis
+    #         # viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=50)
+    #         # viser_for_grasp.wait_for_reset()
 
-            data_dict = {
-                'filename': bathc_i_filename,
-                'xyz': vis_xyz,
-                'grasp_Ts': vis_grasp_Ts,
-                'mesh_T': batch_i_mesh_T,
-            }
-            results.append(data_dict)
-    with open(os.path.join(work_dir, 'eval_results.pkl'), 'wb') as f:
-        pickle.dump(results, f)
+    #         data_dict = {
+    #             'filename': bathc_i_filename,
+    #             'xyz': vis_xyz,
+    #             'grasp_Ts': vis_grasp_Ts,
+    #             'mesh_T': batch_i_mesh_T,
+    #         }
+    #         results.append(data_dict)
+    # with open(os.path.join(work_dir, 'eval_results.pkl'), 'wb') as f:
+    #     pickle.dump(results, f)
     
     results = pickle.load(open(os.path.join(work_dir, 'eval_results.pkl'), 'rb'))
     
@@ -115,12 +115,12 @@ if __name__ == "__main__":
         isaacgym_eval_data_dict[i]['grasp_Ts'] = data_dict['grasp_Ts']
         isaacgym_eval_data_dict[i]['mesh_T'] = mesh_T
 
-        # for debug vis
-        mesh = o3d.io.read_triangle_mesh(mesh_path)
-        mesh.scale(mesh_scale, center=np.zeros(3))
-        mesh.transform(mesh_T)
-        grasp_Ts = data_dict['grasp_Ts']
-        viser_for_grasp.vis_grasp_scene(grasp_Ts, mesh=mesh, pc=obj_pc, max_grasp_num=50)
-        viser_for_grasp.wait_for_reset()
+        # # for debug vis
+        # mesh = o3d.io.read_triangle_mesh(mesh_path)
+        # mesh.scale(mesh_scale, center=np.zeros(3))
+        # mesh.transform(mesh_T)
+        # grasp_Ts = data_dict['grasp_Ts']
+        # viser_for_grasp.vis_grasp_scene(grasp_Ts, mesh=mesh, pc=obj_pc, max_grasp_num=50)
+        # viser_for_grasp.wait_for_reset()
 
     np.save(os.path.join(work_dir, 'isaacgym_eval_results.npy'), isaacgym_eval_data_dict)

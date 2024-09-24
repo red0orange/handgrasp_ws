@@ -7,8 +7,11 @@ sys.path.append(isaacgym_dir)
 from isaacgym_eval import IsaacGymGraspEva
 
 
+proj_dir = os.path.dirname(os.path.abspath(__file__))
+
+
 if __name__ == '__main__':
-    cache_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/data/IsaacGymCache"
-    test_data_path = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/log/epoch_199_20240923-232338_detectiondiffusion/isaacgym_eval_results.npy"
+    cache_dir = os.path.join(proj_dir, 'data/IsaacGymCache')
+    test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_199_20240923-232338_detectiondiffusion/isaacgym_eval_results.npy"
     evaluator = IsaacGymGraspEva(test_data_path, cache_dir, n_envs=10)
-    evaluator.eval()
+    evaluator.eval(debug_vis=False)
