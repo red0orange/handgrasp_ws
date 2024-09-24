@@ -73,19 +73,24 @@ class IsaacGymGraspEva(object):
             mesh_md5 = get_md5(obj_mesh_path)
             tmp_obj_mesh_path = os.path.join(self.cache_obj_dir, mesh_md5+".obj")
 
-            # if not os.path.exists(tmp_obj_mesh_path):
-            mesh = o3d.io.read_triangle_mesh(obj_mesh_path)
-            mesh = mesh.scale(mesh_scale, center=[0, 0, 0])
-            mesh.transform(mesh_T)
+            mesh = None
+            if (not os.path.exists(tmp_obj_mesh_path)) or (not os.path.exists(os.path.join(self.cache_obj_dir, mesh_md5+"_center.npy"))):
+                mesh = o3d.io.read_triangle_mesh(obj_mesh_path)
+                mesh = mesh.scale(mesh_scale, center=[0, 0, 0])
+                mesh.transform(mesh_T)
 
-            mesh_center = mesh.get_center()
-            mesh.translate(-mesh_center)
-            o3d.io.write_triangle_mesh(tmp_obj_mesh_path, mesh)
+                mesh_center = mesh.get_center()
+                mesh.translate(-mesh_center)
+                o3d.io.write_triangle_mesh(tmp_obj_mesh_path, mesh)
+                np.save(os.path.join(self.cache_obj_dir, mesh_md5+"_center.npy"), mesh_center)
+            else:
+                mesh_center = np.load(os.path.join(self.cache_obj_dir, mesh_md5+"_center.npy"))
 
             for i, grasp_T in enumerate(grasp_Ts):
                 grasp_Ts[i][:3, 3] -= mesh_center
 
             if debug_vis and (not self.break_flag):
+                mesh = o3d.io.read_triangle_mesh(tmp_obj_mesh_path)
                 pc = np.array(mesh.vertices)
                 print(f"Grasp num: {len(grasp_Ts)}")
                 for i in range(len(grasp_Ts)):
