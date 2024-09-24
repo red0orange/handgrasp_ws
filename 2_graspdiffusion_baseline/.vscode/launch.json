@@ -1,0 +1,55 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "my eval",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "my_eval.py",
+            "console": "integratedTerminal",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            }
+        },
+        {
+            "name": "my vis eval",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "my_eval_for_vis.py",
+            "console": "integratedTerminal",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            }
+        },
+        {
+            "name": "my eval mutli cost",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "my_eval_multi_costs.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "my train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "my_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--config", 
+                "${workspaceFolder}/config/my_detectiondiffusion.py",
+            ],
+            "justMyCode": false
+        },
+    ]
+}
