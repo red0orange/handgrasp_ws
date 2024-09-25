@@ -65,10 +65,10 @@ class AnyGraspSuccessEvaluator():
 
     def eval_set_of_grasps(self, H):
         n_grasps = H.shape[0]
-        self.success_flags = np.zeros(n_grasps)
+        self.success_flags = np.zeros((n_grasps // self.n_envs) * self.n_envs + self.n_envs)
 
+        self.batch_idx = 0
         for i in range(0, n_grasps, self.n_envs):
-            self.batch_idx = i
             print('iteration: {}'.format(i))
 
             batch_H = H[i:i+self.n_envs,...]
@@ -79,6 +79,7 @@ class AnyGraspSuccessEvaluator():
                 batch_H = torch.cat([batch_H, fake_H], dim=0)
             
             self.eval_batch(batch_H)
+            self.batch_idx += 1
 
         return self.success_cases, self.success_flags[:n_grasps]
 

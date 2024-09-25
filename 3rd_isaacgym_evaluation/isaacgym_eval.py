@@ -108,7 +108,7 @@ class IsaacGymGraspEva(object):
         scales = [1.0] * len(grasp_Ts)
         # try:
         if True:
-            n_envs = len(grasp_Ts)
+            n_envs = min(len(grasp_Ts), 500)
             grasp_evaluator = AnyGraspSuccessEvaluator(obj_mesh_path=tmp_obj_mesh_path, rotations=None, scales=scales, 
                                                     n_envs=n_envs, viewer=False, device=self.device, enable_rel_trafo=False)
             success_cases, success_flags = grasp_evaluator.eval_set_of_grasps(torch.tensor(grasp_Ts, device=self.device))
@@ -169,6 +169,9 @@ class CONGIsaacGymGraspEva(IsaacGymGraspEva):
             if os.path.exists(save_path) and not rewrite:
                 print(f"Skip {ori_cong_pkl_name} because {save_path} exists")
                 continue
+
+            # @note 选 10 个代表出来测试
+            data["grasp_Ts"] = np.random.choice(success_grasp_Ts, 10, replace=False)
 
             self.eval_one_obj(data, debug_vis)
             success_cases, total_num, success_flags = data['eva_result_success_num'], data['eva_result_grasp_num'], data['eva_result_success']

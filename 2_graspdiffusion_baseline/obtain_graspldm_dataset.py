@@ -6,7 +6,7 @@ import random
 import pickle as pkl
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
-project_dir = os.path.dirname(cur_dir)
+project_dir = cur_dir
 
 from tqdm import tqdm
 import numpy as np
@@ -29,6 +29,7 @@ if __name__ == '__main__':
     pkl_data_paths = [os.path.join(cong_dataset_root_dir, i) for i in os.listdir(cong_dataset_root_dir)]
     if os.path.exists(os.path.join(save_dataset_root_dir, 'valid_pkl_data_paths.txt')):
         valid_pkl_data_paths = np.loadtxt(os.path.join(save_dataset_root_dir, 'valid_pkl_data_paths.txt'), dtype=str)
+        valid_pkl_data_paths = [os.path.join(cong_dataset_root_dir, os.path.basename(i)) for i in valid_pkl_data_paths]
     else:
         valid_pkl_data_paths = []
         for i, pickle_path in tqdm(enumerate(pkl_data_paths), total=len(pkl_data_paths)):
@@ -50,17 +51,31 @@ if __name__ == '__main__':
         np.savetxt(os.path.join(save_dataset_root_dir, 'valid_pkl_data_paths.txt'), valid_pkl_data_paths, fmt='%s')
     print("Valid Ratio: {}/{}".format(len(valid_pkl_data_paths), len(pkl_data_paths)))
 
-    # contact graspnet dataset
-    contactgraspnet_split_dir = os.path.join(project_dir, 'data/contactgraspnet_split')
-    obj_cats_split_json_paths = [os.path.join(contactgraspnet_split_dir, i) for i in os.listdir(contactgraspnet_split_dir) if i.endswith('.json')]
-    obj_cats_split_data = {}
-    for obj_cats_split_json_path in obj_cats_split_json_paths:
-        obj_cat = os.path.basename(obj_cats_split_json_path).split(".")[0]
-        json_data = json.load(open(obj_cats_split_json_path, "r"))
-        obj_cats_split_data[obj_cat] = json_data
+    # # contact graspnet dataset
+    # contactgraspnet_split_dir = os.path.join(project_dir, 'data/contactgraspnet_split')
+    # obj_cats_split_json_paths = [os.path.join(contactgraspnet_split_dir, i) for i in os.listdir(contactgraspnet_split_dir) if i.endswith('.json')]
+    # obj_cats_split_data = {}
+    # for obj_cats_split_json_path in obj_cats_split_json_paths:
+    #     obj_cat = os.path.basename(obj_cats_split_json_path).split(".")[0]
+    #     json_data = json.load(open(obj_cats_split_json_path, "r"))
+    #     obj_cats_split_data[obj_cat] = json_data
+
+    # 
+    data_dict = {}
+    for i, pickle_path in enumerate(valid_pkl_data_paths):
+        pickle_fname = os.path.basename(pickle_path).split(".")[0]
+        obj_cat = pickle_fname.split("_")[1]
+        instance_id = pickle_fname.split("_")[2]
+
+        if obj_cat not in data_dict:
+            data_dict[obj_cat] = []
+        data_dict[obj_cat].append(pickle_path)
     
     # 
-    obj_cats = list(data_dict.keys())
+    valid_cats_txt_path = os.path.join(save_dataset_root_dir, 'valid_cats.txt')
+    valid_cats = np.loadtxt(valid_cats_txt_path, dtype=str)
+    # obj_cats = list(data_dict.keys())
+    obj_cats = valid_cats
     per_cat_max_num = 60
     seed_num = 0
     while True:

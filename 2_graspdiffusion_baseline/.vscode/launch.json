@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_0.npy"
+                // "./data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
             ],
             "justMyCode": false
         },

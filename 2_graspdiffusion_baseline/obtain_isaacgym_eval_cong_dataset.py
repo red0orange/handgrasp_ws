@@ -96,20 +96,45 @@ def export_isaacgym_eval_data():
     np.save(os.path.join(save_dataset_root_dir, 'cong_isaacgym_eval_data.npy'), isaacgym_eval_data_dict)
 
 
-def split_cong_eval_data():
+# def split_cong_eval_data():
+#     ori_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
+#     ori_data = np.load(ori_data_path, allow_pickle=True).item()
+#     ori_data_ids = list(ori_data.keys())
+
+#     split_num = 8
+#     split_data_ids = np.array_split(ori_data_ids, split_num)
+#     for i in range(split_num):
+#         save_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data_{}.npy".format(i)
+#         split_data = {}
+#         cur_split_data_ids = split_data_ids[i]
+#         for data_id in cur_split_data_ids:
+#             split_data[data_id] = ori_data[data_id]
+#         np.save(save_path, split_data)
+
+
+def get_each_category_rep_data():
     ori_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
     ori_data = np.load(ori_data_path, allow_pickle=True).item()
     ori_data_ids = list(ori_data.keys())
 
-    split_num = 8
-    split_data_ids = np.array_split(ori_data_ids, split_num)
-    for i in range(split_num):
-        save_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data_{}.npy".format(i)
-        split_data = {}
-        cur_split_data_ids = split_data_ids[i]
-        for data_id in cur_split_data_ids:
-            split_data[data_id] = ori_data[data_id]
-        np.save(save_path, split_data)
+    obj_cat_data_dict = {}
+    for data_id, data in ori_data.items():
+        ori_cong_pickle_name = data['ori_cong_pickle_name']
+        obj_cat = ori_cong_pickle_name.split("_")[1]
+        if obj_cat not in obj_cat_data_dict:
+            obj_cat_data_dict[obj_cat] = []
+        obj_cat_data_dict[obj_cat].append(data_id)
+    
+    rep_data_ids = []
+    for obj_cat, data_ids in obj_cat_data_dict.items():
+        obj_cat_data_dict[obj_cat] = random.shuffle(data_ids)
+        rep_data_ids.append(data_ids[0])
+
+    rep_data = {}
+    for data_id in rep_data_ids:
+        rep_data[data_id] = ori_data[data_id]
+    save_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_cat_rep_isaacgym_eval_data.npy"
+    np.save(save_path, rep_data)
 
 
 def isaacgym_eval_data_to_graspldm_dataset(eval_data_path):
@@ -118,7 +143,9 @@ def isaacgym_eval_data_to_graspldm_dataset(eval_data_path):
     from isaacgym_eval import IsaacGymGraspEva, CONGIsaacGymGraspEva
 
     cache_dir = os.path.join(proj_dir, 'data/IsaacGymCache')
-    output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_eval_results')
+    # output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_ori_eval_results')
+    output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_sample_eval_results')
+    # output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_rep_eval_results')
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
     evaluator = CONGIsaacGymGraspEva(eval_data_path, output_dir, cache_dir, n_envs=50)
     evaluator.eval(debug_vis=False)
@@ -127,7 +154,7 @@ def isaacgym_eval_data_to_graspldm_dataset(eval_data_path):
 def debug_vis_eval_results():
     grasp_viser = ViserForGrasp()
 
-    debug_vis_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/CONG_eval_results/constrained_ToyFigure_d45505e72c54533ec4217b88fb330b04_0_0014432262424130882.npy"
+    debug_vis_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/CONG_rep_eval_results/constrained_ToyFigure_3ba8803f914ac8d767ff608a5fbe6aa8_0_0034366994172005437.npy"
     data = np.load(debug_vis_path, allow_pickle=True).item()
 
     mesh_path = data['mesh_path']
@@ -137,6 +164,7 @@ def debug_vis_eval_results():
 
     isaacgym_eval_res = data["eva_result_success"]
     isaacgym_eval_success_grasp_Ts = [grasp_Ts[i] for i in range(len(grasp_Ts)) if isaacgym_eval_res[i]]
+    print(len(isaacgym_eval_success_grasp_Ts) / len(grasp_Ts))
 
     mesh = o3d.io.read_triangle_mesh(mesh_path)
     mesh.scale(mesh_scale, center=np.zeros(3))
@@ -155,8 +183,6 @@ def debug_vis_eval_results():
 if __name__ == '__main__':
     # export_isaacgym_eval_data()
 
-    # split_cong_eval_data()
-
     eval_data_path = sys.argv[1]
     isaacgym_eval_data_to_graspldm_dataset(eval_data_path)
     """
@@ -171,3 +197,7 @@ if __name__ == '__main__':
     """
 
     # debug_vis_eval_results()
+
+    # split_cong_eval_data()
+
+    # get_each_category_rep_data()

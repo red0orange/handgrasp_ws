@@ -1,6 +1,7 @@
 log/*
 log_remote/*
 __pycache__
+tmp*.npy
 
 tmp/data
 data/*
