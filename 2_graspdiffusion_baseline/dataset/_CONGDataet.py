@@ -60,9 +60,9 @@ class _CONGDataset(Dataset):
         random_idx = np.random.choice(len(grasp_Ts), self.n_grasps)
         grasp_Ts = grasp_Ts[random_idx]
 
-        # @note pre grasp
-        for i in range(grasp_Ts.shape[0]):
-            grasp_Ts[i] = update_pose(grasp_Ts[i], translate=[0, 0, 0.09])
+        # # @note pre grasp
+        # for i in range(grasp_Ts.shape[0]):
+        #     grasp_Ts[i] = update_pose(grasp_Ts[i], translate=[0, 0, 0.09])
 
         # scale
         mesh_scale = self.scale
