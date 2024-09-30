@@ -1,6 +1,7 @@
 import os
 import sys
 import random
+import json
 proj_dir = os.path.dirname(os.path.abspath(__file__))
 mesh_root = os.path.join(proj_dir, 'data/obj_ShapeNetSem/models-OBJ/models')
 
@@ -96,22 +97,6 @@ def export_isaacgym_eval_data():
     np.save(os.path.join(save_dataset_root_dir, 'cong_isaacgym_eval_data.npy'), isaacgym_eval_data_dict)
 
 
-# def split_cong_eval_data():
-#     ori_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
-#     ori_data = np.load(ori_data_path, allow_pickle=True).item()
-#     ori_data_ids = list(ori_data.keys())
-
-#     split_num = 8
-#     split_data_ids = np.array_split(ori_data_ids, split_num)
-#     for i in range(split_num):
-#         save_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data_{}.npy".format(i)
-#         split_data = {}
-#         cur_split_data_ids = split_data_ids[i]
-#         for data_id in cur_split_data_ids:
-#             split_data[data_id] = ori_data[data_id]
-#         np.save(save_path, split_data)
-
-
 def get_each_category_rep_data():
     ori_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
     ori_data = np.load(ori_data_path, allow_pickle=True).item()
@@ -137,17 +122,36 @@ def get_each_category_rep_data():
     np.save(save_path, rep_data)
 
 
-def isaacgym_eval_data_to_graspldm_dataset(eval_data_path):
+def get_train_relabel_data():
+    ori_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
+    data_split_json_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/split.json"
+    split_data = json.load(open(data_split_json_path, 'r'))
+    train_pickle_paths = split_data['train']
+
+    ori_data = np.load(ori_data_path, allow_pickle=True).item()
+    ori_data_ids = list(ori_data.keys())
+
+    train_data = {}
+    for data_id, data in ori_data.items():
+        ori_cong_pickle_name = data['ori_cong_pickle_name']
+        if os.path.basename(ori_cong_pickle_name) in train_pickle_paths:
+            train_data[data_id] = data
+    print("Train Data Size:", len(train_data))
+    save_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_train_isaacgym_eval_data.npy"
+    np.save(save_path, train_data)
+
+
+def isaacgym_eval_data_to_graspldm_dataset(eval_data_path, start_idx):
     isaacgym_dir = os.path.join(os.path.dirname(proj_dir), "3rd_isaacgym_evaluation")
     sys.path.append(isaacgym_dir)
     from isaacgym_eval import IsaacGymGraspEva, CONGIsaacGymGraspEva
 
     cache_dir = os.path.join(proj_dir, 'data/IsaacGymCache')
     # output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_ori_eval_results')
-    output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_sample_eval_results')
+    output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_train_eval_results')
     # output_dir = os.path.join(proj_dir, 'data/grasp_CONG_graspldm/CONG_rep_eval_results')
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
-    evaluator = CONGIsaacGymGraspEva(eval_data_path, output_dir, cache_dir, n_envs=50)
+    evaluator = CONGIsaacGymGraspEva(eval_data_path, output_dir, cache_dir, n_envs=50, start_idx=start_idx)
     evaluator.eval(debug_vis=False)
 
 
@@ -183,8 +187,15 @@ def debug_vis_eval_results():
 if __name__ == '__main__':
     # export_isaacgym_eval_data()
 
-    eval_data_path = sys.argv[1]
-    isaacgym_eval_data_to_graspldm_dataset(eval_data_path)
+    # get_train_relabel_data()
+
+    eval_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_train_isaacgym_eval_data.npy"
+    start_idx = 0
+    isaacgym_eval_data_to_graspldm_dataset(eval_data_path, start_idx)
+
+    # eval_data_path = sys.argv[1]
+    # start_idx = int(sys.argv[2])
+    # isaacgym_eval_data_to_graspldm_dataset(eval_data_path, start_idx)
     """
     /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_0.npy
     /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_1.npy

@@ -568,10 +568,10 @@ class AnyIsaacGymWrapper():
         self.gym.refresh_jacobian_tensors(self.sim)
         self.gym.refresh_mass_matrix_tensors(self.sim)
 
-        # Step rendering
-        self.gym.step_graphics(self.sim)
 
         if self.visualize:
+            # Step rendering
+            # self.gym.step_graphics(self.sim)
             self.gym.step_graphics(self.sim)
             self.gym.draw_viewer(self.viewer, self.sim, False)
 

@@ -87,6 +87,18 @@ class _CONGDataset(Dataset):
             mesh_T[:3, :3] = random_R
 
         return [data_file], obj_pc, grasp_Ts, mesh_T, mesh_scale
+    
+    def preprocess_infer_data(self, obj_pc):
+        obj_pc_num = obj_pc.shape[0]
+        while obj_pc_num < self.n_pointcloud:
+            obj_pc = np.concatenate([obj_pc, obj_pc], axis=0)
+        random_idx = np.random.choice(obj_pc_num, self.n_pointcloud, replace=False)
+        obj_pc = obj_pc[random_idx]
+
+        # scale
+        obj_pc = obj_pc * self.scale
+
+        return obj_pc
 
 
 if __name__ == "__main__":

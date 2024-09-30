@@ -15,7 +15,7 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 if __name__ == "__main__":
     # work_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/log/epoch_199_20240923-232338_detectiondiffusion"
-    work_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/log/epoch_199_20240924-094641_detectiondiffusion"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_199_20240925-131342_detectiondiffusion"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     # checkpoint_path = os.path.join(work_dir, "model_epoch_75.pth")
@@ -45,7 +45,8 @@ if __name__ == "__main__":
     grasp_per_obj = 10
     for data in tqdm(dataset, total=len(dataset)):
         # ori_xyz, xyz, gt_T, _, _ = data
-        filename, xyz, gt_T = data
+        # filename, xyz, gt_T = data
+        filename, xyz, gt_T, mesh_T = data[0], data[1], data[2], data[3]
 
         xyz = torch.from_numpy(xyz).unsqueeze(0).float().cuda()
         pred = model.detect_and_sample(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale)
