@@ -147,6 +147,12 @@ def cal_grasp_refine_score(g_i, g):
     return -g.grad
 
 
+class GraspEvalNet(nn.Module):
+    def __init__(self):
+        super(GraspEvalNet, self).__init__()
+        pass
+
+
 class ScoreBasedGraspingDiffusion(nn.Module):
     def __init__(self, betas, n_T, device, drop_prob=0.1, rot6d_rep=True, unet_or_transformer="unet", training_method="ddpm", sigma=0.07, grasp_obj_joint_embed=True):
         super(ScoreBasedGraspingDiffusion, self).__init__()

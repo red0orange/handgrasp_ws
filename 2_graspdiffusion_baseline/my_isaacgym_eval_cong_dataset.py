@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import random
 import json
 proj_dir = os.path.dirname(os.path.abspath(__file__))
@@ -184,31 +185,60 @@ def debug_vis_eval_results():
     pass
 
 
+def transfere_eval_results():
+    ori_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/data"
+    save_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/eval_data"
+    eval_results_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/CONG_train_eval_results"
+    split_json_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/split.json"
+
+    split_data = json.load(open(split_json_path, 'r'))
+
+    valid_pickle_paths = split_data['valid']
+    data_files = [os.path.join(ori_dir, i) for i in valid_pickle_paths]
+    for data_file in data_files:
+        save_path = os.path.join(save_dir, os.path.basename(data_file))
+        shutil.copy(data_file, save_path)
+    pass
+
+    train_pickle_paths = split_data['train']
+    data_files = [os.path.join(ori_dir, i) for i in train_pickle_paths]
+    eval_result_files = [os.path.join(eval_results_dir, i.split(".")[0]+".npy") for i in train_pickle_paths]
+
+    for data_file, eval_result_file in zip(data_files, eval_result_files):
+        data = pickle.load(open(data_file, 'rb'))
+        eval_result = np.load(eval_result_file, allow_pickle=True).item()
+
+        ori_grasp_success = data['grasps/successes']
+        eval_grasp_success = eval_result['eva_result_success']
+
+        data['grasps/ori_successes'] = ori_grasp_success.copy()
+        ori_grasp_success[ori_grasp_success == 1] = eval_grasp_success
+        data['grasps/successes'] = ori_grasp_success
+
+        save_path = os.path.join(save_dir, os.path.basename(data_file))
+        pickle.dump(data, open(save_path, 'wb'))
+        pass
+
+
+
+
 if __name__ == '__main__':
     # export_isaacgym_eval_data()
 
     # get_train_relabel_data()
 
-    eval_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_train_isaacgym_eval_data.npy"
-    start_idx = 0
-    isaacgym_eval_data_to_graspldm_dataset(eval_data_path, start_idx)
+    # eval_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/cong_train_isaacgym_eval_data.npy"
+    # start_idx = 0
+    # isaacgym_eval_data_to_graspldm_dataset(eval_data_path, start_idx)
 
     # eval_data_path = sys.argv[1]
     # start_idx = int(sys.argv[2])
     # isaacgym_eval_data_to_graspldm_dataset(eval_data_path, start_idx)
-    """
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_0.npy
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_1.npy
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_2.npy
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_3.npy
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_4.npy
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_5.npy
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_6.npy
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python obtain_isaacgym_eval_cong_dataset.py ./data/grasp_CONG_graspldm/cong_isaacgym_eval_data_7.npy
-    """
 
     # debug_vis_eval_results()
 
     # split_cong_eval_data()
 
     # get_each_category_rep_data()
+
+    transfere_eval_results()

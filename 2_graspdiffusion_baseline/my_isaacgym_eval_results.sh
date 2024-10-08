@@ -40,22 +40,45 @@
 # # 调用主执行函数
 # execute_script
 
-# 主执行函数
-execute_script() {
-    echo "Trying to execute with random number"
+# # 主执行函数
+# execute_script() {
+#     echo "Trying to execute with random number"
     
-    # 使用随机数作为参数执行Python脚本
-    /home/red0orange/miniconda3/envs/3dapnet/bin/python "obtain_isaacgym_eval_cong_dataset.py"
+#     # 使用随机数作为参数执行Python脚本
+#     /home/red0orange/miniconda3/envs/3dapnet/bin/python "obtain_isaacgym_eval_cong_dataset.py"
     
-    # 检查Python脚本的退出状态
-    # if [ $? -ne 0 ]; then
-    echo "Execution failed with exit code $?"
-    sleep 360
-    execute_script # 如果失败，递归调用自身
-    # else
-    #     echo "Execution succeeded."
-    # fi
-}
+#     # 检查Python脚本的退出状态
+#     # if [ $? -ne 0 ]; then
+#     echo "Execution failed with exit code $?"
+#     sleep 360
+#     execute_script # 如果失败，递归调用自身
+#     # else
+#     #     echo "Execution succeeded."
+#     # fi
+# }
 
-# 调用主执行函数
-execute_script
+# # 调用主执行函数
+# execute_script
+
+
+#!/bin/bash
+
+# 要执行的命令
+COMMAND="/home/red0orange/miniconda3/envs/3dapnet/bin/python "my_isaacgym_eval_cong_dataset.py""
+
+# 无限循环
+while true; do
+    # 执行命令
+    $COMMAND &
+    # 获取命令的PID
+    CMD_PID=$!
+
+    # 等待1小时
+    sleep 7200
+
+    # 发送SIGTERM信号终止命令
+    kill $CMD_PID 2>/dev/null
+
+    # 等待命令终止
+    wait $CMD_PID 2>/dev/null
+done

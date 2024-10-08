@@ -77,8 +77,10 @@ if __name__ == "__main__":
     xyz = torch.from_numpy(xyz).unsqueeze(0).float().cuda()
 
 
+    # @note 无限制直接预测
     # pred = model.detect_and_sample(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale)
 
+    # @note 限制预测
     g_init = np.concatenate((matrix_to_rotation_6d_np(my_palm_T[:3, :3]), my_palm_T[:3, 3]), axis=0)
     g_init = torch.from_numpy(g_init).float().cuda()
     pred = model.refine_grasp_sample(xyz, grasp_per_obj, g_init)
