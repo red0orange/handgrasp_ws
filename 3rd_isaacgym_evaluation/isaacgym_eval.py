@@ -52,6 +52,7 @@ class IsaacGymGraspEva(object):
 
         self.exp_name = os.path.basename(data_npy_path).rsplit(".", maxsplit=1)[0]
         self.data_npy_path = data_npy_path
+        self.work_dir = os.path.dirname(data_npy_path)
         self.data_dict = np.load(self.data_npy_path, allow_pickle=True).item()
 
         # self.n_envs = n_envs
@@ -131,7 +132,8 @@ class IsaacGymGraspEva(object):
         success_num_record = []
         num_record = []
         success_record = []
-        tmp_txt_path = "tmp.txt"
+        tmp_txt_path = "isaacgym_eval_result.txt"
+        tmp_txt_path = os.path.join(self.work_dir, tmp_txt_path)
         for data_id, data in tqdm(self.data_dict.items(), total=len(self.data_dict)):
             self.eval_one_obj(data, debug_vis)
             success_cases, total_num, success_flags = data['eva_result_success_num'], data['eva_result_grasp_num'], data['eva_result_success']

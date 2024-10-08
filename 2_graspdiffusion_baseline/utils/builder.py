@@ -72,8 +72,11 @@ def build_dataset(cfg):
             train_set = _AcronymDataset(data_dir, mode='train', fix_local_geo=fix_local_geo, use_loca_geo_cache=True)
             test_set = _AcronymDataset(data_dir, mode='test', fix_local_geo=fix_local_geo, use_loca_geo_cache=True)
         elif dataset_name == "CONG":
-            train_set = _CONGDataset(data_dir, mode='train')
-            test_set = _CONGDataset(data_dir, mode='valid')
+            split_json_path = None
+            if hasattr(data_info, 'split_json_path'):
+                split_json_path = data_info.split_json_path
+            train_set = _CONGDataset(data_dir, mode='train', split_json_path=split_json_path)
+            test_set = _CONGDataset(data_dir, mode='valid', split_json_path=split_json_path)
         else:
             raise ValueError("The dataset name does not exist!")
         dataset_dict = dict(

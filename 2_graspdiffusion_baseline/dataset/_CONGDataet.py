@@ -16,11 +16,13 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 class _CONGDataset(Dataset):
-    def __init__(self, data_dir, mode='train', n_pointcloud=2048, n_grasps=80, augmented_rotation=True, center_pcl=True, partial=True):
+    def __init__(self, data_dir, mode='train', split_json_path=None, n_pointcloud=2048, n_grasps=80, augmented_rotation=True, center_pcl=True, partial=True):
         self.data_dir = data_dir
         self.type = mode
 
-        self.split_json_file = os.path.join(data_dir, 'split.json')
+        if split_json_path is None:
+            split_json_path = os.path.join(data_dir, 'split.json')
+        self.split_json_file = split_json_path
         self.split = json.load(open(self.split_json_file, 'r'))
         self.data_files = self.split[mode]
         self.data_files = [os.path.join(data_dir, 'data', i) for i in self.data_files]
