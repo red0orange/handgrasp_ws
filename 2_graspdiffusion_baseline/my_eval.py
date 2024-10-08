@@ -105,7 +105,6 @@ if __name__ == "__main__":
         pickle_data_path = data_dict['filename']
         obj_pc = data_dict['xyz']
         mesh_T = data_dict['mesh_T']
-        obj_pc_center = np.mean(obj_pc, axis=0)
         pickle_data = pickle.load(open(pickle_data_path, 'rb'))
         mesh_fname = os.path.basename(pickle_data["mesh/file"])
         mesh_path = os.path.join(mesh_root, mesh_fname)

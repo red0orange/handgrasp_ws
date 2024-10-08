@@ -21,6 +21,9 @@ IsaacGym 评估脚本：
 - `obtain_graspldm_dataset_sample_eval_instances.py`: 针对 CONG 所有 instances 随机抽取 10 个抓取，然后根据这个抽样的结果选择有效的 instances。然后根据有效的 instances 去选择训练、测试数据集。
 - `obtain_graspldm_dataset_new_export_all_others.py`: 根据 `obtain_graspldm_dataset_sample_eval_instances.py` 选择的有效的 instances，将除了训练集外的所有有效 instances 作为测试集，这样能够挑选出结果好的。
 
+基于 oakink 去生成评估用的数据集：
+- `obtain_my_oakink_dataset.py`: 基于 oakink 数据集生成
+
 其他脚本：
 - `my_process_local_geo_dataset.py`: 缓存数据集的 local geo 数据，加快训练速度
 - `my_vis_cong_dataset.py`: 可视化一下 CONG 数据集，验证数据集格式
