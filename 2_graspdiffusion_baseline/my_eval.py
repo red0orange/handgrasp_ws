@@ -15,7 +15,7 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 if __name__ == "__main__":
-    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     # checkpoint_path = os.path.join(work_dir, "model_epoch_75.pth")

@@ -25,15 +25,6 @@ class _CONGDataset(Dataset):
         self.data_files = self.split[mode]
         self.data_files = [os.path.join(data_dir, 'data', i) for i in self.data_files]
 
-        self.eval_data_root = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/CONG_train_eval_results"
-        self.eval_data_names = [os.path.basename(i).split(".")[0] + ".npy" for i in self.data_files]
-        self.eval_data_files = [os.path.join(self.eval_data_root, i) for i in self.eval_data_names]
-        cnt = 0
-        for i in self.eval_data_files:
-            if not os.path.exists(i):
-                cnt += 1
-        print("Missing {} eval data".format(cnt))
-        
         # params
         self.n_pointcloud = n_pointcloud
         self.n_grasps = n_grasps
@@ -51,10 +42,6 @@ class _CONGDataset(Dataset):
         data_file = self.data_files[idx]
 
         pkl_data = pkl.load(open(data_file, 'rb'))
-
-        eval_data_file = self.eval_data_files[idx]
-        eval_data = np.load(eval_data_file, allow_pickle=True).item()
-        eval_results = eval_data["eva_result_success"]
 
         obj_pc = pkl_data["sampled_pc_{}".format(self.n_pointcloud)]
         grasp_Ts = list(pkl_data["grasps/transformations"])
