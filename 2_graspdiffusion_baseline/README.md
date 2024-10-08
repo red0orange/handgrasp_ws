@@ -18,8 +18,6 @@ IsaacGym 评估脚本：
 - `my_isaacgym_eval_results.sh`: `my_isaacgym_eval_cong_dataset.py` 评估经常会中断，因此我们写了这个脚本来循环保证生成结果
 
 基于 CONG 去生成与 graspldm 保持一致的训练、测试数据集：下面多个文件是相同性质的，只是选择 instances 的方式不同，目前最有效的是每个 instances 抽取 10 个抓取评估，根据这个抽样的结果选择有效的 instances。
-- `obtain_graspldm_dataset_random_instances.py`: 直接随机选择 instances 作为训练、测试数据集，这样很多 instances 可能是无效的。
-- `obtain_graspldm_dataset_rep_valid_cats_instances.py`: 在每个类别里选择一个 instance 去评估，根据这个 instance 的结果选择有效的 cats。然后根据有效的 cats 里的 instances 去选择训练、测试数据集。
 - `obtain_graspldm_dataset_sample_eval_instances.py`: 针对 CONG 所有 instances 随机抽取 10 个抓取，然后根据这个抽样的结果选择有效的 instances。然后根据有效的 instances 去选择训练、测试数据集。
 - `obtain_graspldm_dataset_new_export_all_others.py`: 根据 `obtain_graspldm_dataset_sample_eval_instances.py` 选择的有效的 instances，将除了训练集外的所有有效 instances 作为测试集，这样能够挑选出结果好的。
 
