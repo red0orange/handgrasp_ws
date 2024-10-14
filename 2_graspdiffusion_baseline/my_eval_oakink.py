@@ -69,29 +69,31 @@ def eval_for_vis(work_dir):
         obj_center = np.mean(obj_verts, axis=0)
         obj_verts -= obj_center
         hand_verts -= obj_center
+        my_palm_T[:3, 3] -= obj_center
 
         # # @note debug vis
         # viser_for_grasp.add_pcd(obj_verts)
         # viser_for_grasp.add_pcd(hand_verts)
-        # viser_for_grasp.add_grasp(palm_T)
+        # viser_for_grasp.add_grasp(my_palm_T)
         # viser_for_grasp.wait_for_reset()
 
         hand_mesh = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(hand_verts), o3d.utility.Vector3iVector(hand_faces))
         hand_mesh.compute_vertex_normals()
         
         xyz = dataset.preprocess_infer_data(obj_verts)
+        refine_palm_T = my_palm_T.copy()
+        refine_palm_T[:3, 3] *= dataset.scale
 
         # @note begin infer
         xyz = torch.from_numpy(xyz).unsqueeze(0).float().cuda()
 
-
         # # @note 无限制直接预测
-        pred = model.detect_and_sample(xyz, 10, guide_w=GUIDE_W, data_scale=dataset.scale)
+        # pred = model.detect_and_sample(xyz, 10, guide_w=GUIDE_W, data_scale=dataset.scale)
 
-        # # @note 限制预测
-        # g_init = np.concatenate((matrix_to_rotation_6d_np(my_palm_T[:3, :3]), my_palm_T[:3, 3]), axis=0)
-        # g_init = torch.from_numpy(g_init).float().cuda()
-        # pred = model.refine_grasp_sample(xyz, 10, g_init)
+        # @note 限制预测
+        g_init = np.concatenate((matrix_to_rotation_6d_np(refine_palm_T[:3, :3]), refine_palm_T[:3, 3]), axis=0)
+        g_init = torch.from_numpy(g_init).float().cuda()
+        pred = model.refine_grasp_sample(xyz, 10, g_init)
 
         xyz = xyz.squeeze(0).cpu().numpy()
 
@@ -113,12 +115,14 @@ def eval_for_vis(work_dir):
         rotate_T = update_pose(np.eye(4), rotate=np.pi/2, rotate_axis="y")
         vis_xyz = transform_pcd(vis_xyz, rotate_T)
         hand_mesh.transform(rotate_T)
+        my_palm_T = rotate_T @ my_palm_T
         vis_T = [rotate_T @ t for t in vis_T]
 
         # debug vis
         print("Waiiting for viser visualization")
         viser_for_grasp.vis_grasp_scene(vis_T, pc=vis_xyz, max_grasp_num=50)
         viser_for_grasp.add_mesh(hand_mesh)
+        viser_for_grasp.add_grasp(my_palm_T, z_direction=True)
         viser_for_grasp.wait_for_reset()
 
 
@@ -286,6 +290,6 @@ def eval_for_isaacgym(work_dir):
 if __name__ == "__main__":
     work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
 
-    # eval_for_vis(work_dir)
-    eval_for_isaacgym(work_dir)
+    eval_for_vis(work_dir)
+    # eval_for_isaacgym(work_dir)
     pass

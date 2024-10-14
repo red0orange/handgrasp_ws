@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pytorch3d.transforms import matrix_to_quaternion, quaternion_to_matrix
+from pytorch3d.transforms import matrix_to_quaternion, quaternion_to_matrix, rotation_6d_to_matrix, matrix_to_rotation_6d
 
 from .components import PointNetPlusPlus, UNetPoseNet, TransformerPoseNet
 from .pointnet_util import PointNetSetAbstractionMsg
@@ -141,6 +141,60 @@ def cal_grasp_refine_score(g_i, g):
     g = g.clone().detach()
     g.requires_grad_(True)
     net = GraspRefineScoreNet(g_i, 2.0, 1.0)
+    loss = net(g)
+    loss.backward()
+
+    return -g.grad
+
+
+def new_cal_grasp_refine_score(g_i, g):
+    class GraspRefineScoreNet(nn.Module):
+        def __init__(self, g_i, loss_rot_weight=1.0, loss_trans_weight=1.0):
+            super(GraspRefineScoreNet, self).__init__()
+            self.g_i = g_i
+            self.loss_rot_weight = loss_rot_weight
+            self.loss_trans_weight = loss_trans_weight
+
+            self.loss_mse_rot = nn.MSELoss()
+            self.loss_mse_trans = nn.MSELoss()
+            pass
+
+        def forward(self, g):
+
+            g_rotation = g[:, :6]
+            g_translation = g[:, 6:]
+
+            g_i_rotation = self.g_i[:6][None, ...].repeat(g.shape[0], 1)
+            g_i_translation = self.g_i[6:][None, ...].repeat(g.shape[0], 1)
+
+            g_rotation_matrix = rotation_6d_to_matrix(g_rotation)
+            g_T = torch.eye(4, device=g.device)[None, :, :].repeat(g.shape[0], 1, 1)
+            g_T[:, :3, :3] = g_rotation_matrix
+            g_T[:, :3, 3] = g_translation
+            gripper_depth_T = torch.eye(4, device=g.device)
+            # gripper_depth_T[2, 3] = -0.08
+            g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
+            g_translation = g_T[:, :3, 3]
+
+            g_i_rotation_matrix = rotation_6d_to_matrix(g_i_rotation)
+
+            g_rotation_z_axis = g_rotation_matrix[:, :3, 2]
+            g_i_rotation_z_axis = g_i_rotation_matrix[:, :3, 2]
+            eps = 1e-5
+            g_rotation_z_axis = g_rotation_z_axis / (torch.norm(g_rotation_z_axis, dim=1, keepdim=True) + eps)
+            g_i_rotation_z_axis = g_i_rotation_z_axis / (torch.norm(g_i_rotation_z_axis, dim=1, keepdim=True) + eps)
+            z_angles = torch.acos(torch.clamp(torch.sum(g_rotation_z_axis * g_i_rotation_z_axis, dim=1), -1 + eps, 1 - eps))
+
+            # rot_loss = self.loss_mse_rot(g_rotation, g_i_rotation)
+            rot_loss = torch.mean(z_angles)
+            trans_loss = self.loss_mse_trans(g_translation, g_i_translation)
+            print(trans_loss)
+
+            return self.loss_rot_weight * rot_loss + self.loss_trans_weight * trans_loss
+
+    g = g.clone().detach()
+    g.requires_grad_(True)
+    net = GraspRefineScoreNet(g_i, 0.1, 5.0)
     loss = net(g)
     loss.backward()
 
@@ -432,7 +486,8 @@ class ScoreBasedGraspingDiffusion(nn.Module):
                         score = self.posenet(g, c, context_mask, batch_time_step)
 
                     # refine cost
-                    grad = cal_grasp_refine_score(g_init, g)
+                    # grad = cal_grasp_refine_score(g_init, g)
+                    grad = new_cal_grasp_refine_score(g_init, g)
                     refine_weight = 150.000
                     score = score + refine_weight * grad
                     
