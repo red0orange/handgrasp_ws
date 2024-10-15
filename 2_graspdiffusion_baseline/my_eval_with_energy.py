@@ -25,6 +25,7 @@ if __name__ == "__main__":
     checkpoint_path = os.path.join(energynet_work_dir, "current_model.t7")
     cfg = Config.fromfile(config_file_path)
     energy_model = build_model(cfg).to(DEVICE)
+    energy_model.eval()
 
     # score net
     scorenet_work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
@@ -38,7 +39,7 @@ if __name__ == "__main__":
     dataset = build_dataset(cfg)['test_set']
     # dataset = build_dataset(cfg)['train_set']
     rot6d_rep = cfg.hyper_params.rot6d_rep
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False, num_workers=8)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
     
     print("Loading checkpoint....")
     _, exten = os.path.splitext(checkpoint_path)
@@ -60,7 +61,10 @@ if __name__ == "__main__":
         filename = filename[0]
 
         xyz = xyz.float().cuda()
+        # @note 使用 score estimation network 预测 score
         pred_g = model.batch_detect_and_sample(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale)
+        # # @note 使用 energ estimation network 预测 score
+        # pred_g = energy_model.batch_detect_and_sample_with_energy(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale)
         
         energy_pred_g = pred_g.copy()
         energy_pred_g = torch.from_numpy(energy_pred_g).float().cuda()
@@ -73,8 +77,12 @@ if __name__ == "__main__":
         # energy: (batch_size, num_grasp)
         batch_size, grasp_num, _ = pred_g.shape
         sorted_idx = np.argsort(-energy, axis=1)[:, :10]
+        # sorted_idx = np.argsort(energy, axis=1)[:, :10]
         selected_pred_g = pred_g[np.arange(batch_size)[:, None], sorted_idx]
         pred_g = selected_pred_g
+
+        # # 随机选择 10 个
+        # pred_g = pred_g[:, np.random.choice(pred_g.shape[1], 10, replace=False), :]
 
         batch_size = pred_g.shape[0]
         num_grasp = pred_g.shape[1]

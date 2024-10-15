@@ -445,6 +445,59 @@ class ScoreBasedGraspingDiffusion(nn.Module):
         else:
             raise NotImplementedError()
     
+    def batch_detect_and_sample_with_energy(self, xyz, n_sample, guide_w, data_scale=1.0):
+        # @note 因为每次采样都要进行几百步的抓取，用求导的方式计算 energy 非常非常慢
+        """_summary_
+        Detect affordance for one point cloud and sample [n_sample] poses that support the 'text' affordance task,
+        following the guidance sampling scheme described in 'Classifier-Free Diffusion Guidance'.
+        """
+        if self.training_method == "ddpm":
+            raise NotImplementedError()
+        elif self.training_method == "score_based":
+            batch_size = xyz.shape[0]
+            t = torch.ones([batch_size * n_sample], device=self.device)
+            g_i = torch.randn(batch_size * n_sample, (self.action_dim)).to(self.device) * self.marginal_prob_std_fn(t)[..., None]
+            time_steps = torch.linspace(1., self.eps, self.num_steps, device=self.device)
+            step_size = time_steps[0] - time_steps[1]
+            g = g_i
+            context_mask = torch.ones((batch_size * n_sample, 1)).float().to(self.device)
+            # with torch.no_grad():
+            obj_c = self.independent_obj_pc_embed(xyz, grasp_num=n_sample)
+            for time_step in time_steps:
+                step_num = 1
+                if time_step < 0.2:  # for refine
+                    step_num = 3
+
+                for i in range(step_num):
+                    if self.grasp_obj_joint_embed:
+                        grasp_c = self.independent_grasp_pc_embed(self.g2T(g)[None, ...], data_scale=data_scale)
+                        c = obj_c.reshape(-1, obj_c.shape[-1])
+                        c = torch.cat((c, grasp_c.squeeze(0)), dim=1)
+                    else:
+                        c = obj_c.reshape(-1, obj_c.shape[-1])
+
+                    batch_time_step = torch.ones(batch_size*n_sample, device=self.device) * time_step
+                    sde_g = self.diffusion_coeff_fn(batch_time_step)
+
+                    with TemporaryGrad():  # @note energy-based diffusion model
+                        # 下面是核心的采样公式
+                        dicrect_score = self.posenet(g, c, context_mask, batch_time_step)
+                        inp_variable_sampled_pose = Variable(g, requires_grad=True)
+                        energy = torch.sum(inp_variable_sampled_pose * dicrect_score, dim=-1)
+                        score, = torch.autograd.grad(energy, inp_variable_sampled_pose,
+                                                grad_outputs=energy.data.new(energy.shape).fill_(1),
+                                                create_graph=True)
+
+
+                    g_mean = g + (sde_g ** 2)[:, None] * score * step_size
+                    g = g_mean + torch.sqrt(step_size) * sde_g[:, None] * torch.randn_like(g)
+            
+            res_g = g.reshape(batch_size, n_sample, -1)
+            return res_g.detach().cpu().numpy()
+            pass
+        else:
+            raise NotImplementedError()
+    
     def batch_estimate_energy(self, batch_xyz, batch_g, data_scale=1.0):
         # batch_g: [B, grasp_num, 9]
         # batch_xyz: [B, N, 3]
