@@ -445,11 +445,21 @@ class ScoreBasedGraspingDiffusion(nn.Module):
         else:
             raise NotImplementedError()
     
-    def estimate_energy(self, xyz, batch_g, batch_t, data_scale=1.0):
-        # batch_g: [B, 9]
-        B = batch_g.shape[0]
+    def batch_estimate_energy(self, batch_xyz, batch_g, data_scale=1.0):
+        # batch_g: [B, grasp_num, 9]
+        # batch_xyz: [B, N, 3]
+        B, grasp_num, action_dim = batch_g.shape
+
+        # 在预测完成后才计算 energy，所以 time_step 设为 0，即无噪声状态
+        batch_t = torch.zeros(B * grasp_num, device=self.device)
+
+        obj_c = self.independent_obj_pc_embed(batch_xyz, grasp_num)
+        B = B * grasp_num
+        batch_g = batch_g.reshape(-1, batch_g.shape[-1])
+        obj_c = obj_c.reshape(-1, obj_c.shape[-1])
+
         context_mask = torch.ones(B, 1).float().to(self.device)
-        batch_g = batch_g.unsqueeze(0)
+        batch_g = batch_g.reshape(-1, grasp_num, batch_g.shape[-1])
         grasp_c = self.independent_grasp_pc_embed(self.g2T(batch_g), data_scale=data_scale)
         grasp_c = grasp_c.reshape(-1, grasp_c.shape[-1])
         batch_g = batch_g.reshape(-1, batch_g.shape[-1])
@@ -457,6 +467,7 @@ class ScoreBasedGraspingDiffusion(nn.Module):
 
         dicrect_score = self.posenet(batch_g, c, context_mask, batch_t)
         energy = torch.sum(batch_g * dicrect_score, dim=-1)
+        energy = energy.reshape(-1, grasp_num)
         return energy.detach().cpu().numpy()
     
     def detect_and_sample(self, xyz, n_sample, guide_w, data_scale=1.0):

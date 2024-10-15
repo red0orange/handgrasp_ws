@@ -58,4 +58,5 @@ training_cfg = dict(
 data = dict(
     type="CONG",
     data_dir="./data/grasp_CONG_graspldm",
+    split_json_path="/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/selected_valid_split.json"
 )

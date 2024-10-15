@@ -128,11 +128,11 @@ class IsaacGymGraspEva(object):
 
         return success_cases, len(grasp_Ts), success_flags
     
-    def eval(self, debug_vis=True):
+    def eval(self, debug_vis=True, save_name="isaacgym_eval_result"):
         success_num_record = []
         num_record = []
         success_record = []
-        tmp_txt_path = "isaacgym_eval_result.txt"
+        tmp_txt_path = "{}.txt".format(save_name)
         tmp_txt_path = os.path.join(self.work_dir, tmp_txt_path)
         for data_id, data in tqdm(self.data_dict.items(), total=len(self.data_dict)):
             self.eval_one_obj(data, debug_vis)
