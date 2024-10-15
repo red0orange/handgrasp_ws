@@ -68,7 +68,9 @@ class MyTrainer(object):
             xyz = xyz.to(DEVICE)
             T = T.to(DEVICE)
             
-            loss = self.model(xyz, T, data_scale=self.train_loader.dataset.scale)
+            trained_model_type = "energy_based"
+            # trained_model_type = "score_based"
+            loss = self.model(xyz, T, data_scale=self.train_loader.dataset.scale, method=trained_model_type)
             if torch.isnan(loss):
                 self.log("##################### Error: Loss is nan")
                 print('##################### Error: Loss is nan')

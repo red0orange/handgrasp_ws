@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
+from pytorch3d.transforms import matrix_to_quaternion, quaternion_to_matrix
 from pytorch3d.transforms import matrix_to_quaternion, quaternion_to_matrix, rotation_6d_to_matrix, matrix_to_rotation_6d
 
 from .components import PointNetPlusPlus, UNetPoseNet, TransformerPoseNet
@@ -147,6 +149,15 @@ def cal_grasp_refine_score(g_i, g):
     return -g.grad
 
 
+class TemporaryGrad(object):
+    def __enter__(self):
+        self.prev = torch.is_grad_enabled()
+        torch.set_grad_enabled(True)
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        torch.set_grad_enabled(self.prev)
+
+
 def new_cal_grasp_refine_score(g_i, g):
     class GraspRefineScoreNet(nn.Module):
         def __init__(self, g_i, loss_rot_weight=1.0, loss_trans_weight=1.0):
@@ -212,12 +223,6 @@ def new_cal_grasp_refine_score(g_i, g):
     return -g.grad
 
 
-class GraspEvalNet(nn.Module):
-    def __init__(self):
-        super(GraspEvalNet, self).__init__()
-        pass
-
-
 class ScoreBasedGraspingDiffusion(nn.Module):
     def __init__(self, betas, n_T, device, drop_prob=0.1, rot6d_rep=True, unet_or_transformer="unet", training_method="ddpm", sigma=0.07, grasp_obj_joint_embed=True):
         super(ScoreBasedGraspingDiffusion, self).__init__()
@@ -269,8 +274,8 @@ class ScoreBasedGraspingDiffusion(nn.Module):
             self.diffusion_coeff_fn = functools.partial(diffusion_coeff, sigma=sigma, device=self.device)
         else:
             raise BaseException()
-
-    def forward(self, xyz, T, data_scale=1.0):
+    
+    def score_based_forward(self, xyz, T, data_scale=1.0):
         """_summary_
         This method is used in training, so samples _ts and noise randomly.
         """
@@ -346,6 +351,113 @@ class ScoreBasedGraspingDiffusion(nn.Module):
             raise BaseException()
 
         return pose_loss
+
+    def energy_based_forward(self, xyz, T, data_scale=1.0):
+        """_summary_
+        This method is used in training, so samples _ts and noise randomly.
+        """
+        B = T.shape[0]
+        grasp_num = T.shape[1]
+
+        # 转换 grasp pose 表征
+        if self.rot6d_rep:
+            flatten_T = T.reshape(-1, 4, 4)
+            flatten_rotation = matrix_to_rotation_6d(flatten_T[:, :3, :3])
+            rotation = flatten_rotation.reshape(B, -1, 6)
+            translation = T[:, :, :3, 3]
+        else:
+            flatten_T = T.reshape(-1, 4, 4)
+            flatten_rotation = matrix_to_quaternion(flatten_T[:, :3, :3])
+            rotation = flatten_rotation.reshape(B, -1, 4)
+            translation = T[:, :, :3, 3]
+
+        g = torch.cat((rotation, translation), dim=2)
+        g = g.float()
+
+        # PointNet++ feature extraction
+        T = T.float()
+        xyz = xyz.float()
+        obj_c = self.independent_obj_pc_embed(xyz, grasp_num)
+
+        # @note 把 grasp_num 展平到 batch 维度统一处理
+        B = B * grasp_num
+        g = g.reshape(-1, self.action_dim)
+        obj_c = obj_c.reshape(-1, obj_c.shape[-1])
+            
+        # 上面整理好 feature
+        if self.training_method == "ddpm":
+            _ts = torch.randint(1, self.n_T + 1, (B,)).to(self.device)
+            noise = torch.randn_like(g)  # eps ~ N(0, 1), g size [B, action_dim]
+            g_t = (
+                self.sqrtab[_ts - 1, None] * g
+                + self.sqrtmab[_ts - 1, None] * noise
+            )  # This is the g_t, which is sqrt(alphabar) g_0 + sqrt(1-alphabar) * eps
+
+            if self.grasp_obj_joint_embed:
+                g_t = g_t.reshape(-1, grasp_num, g_t.shape[-1])
+                grasp_c = self.independent_grasp_pc_embed(self.g2T(g_t), data_scale=data_scale)
+                grasp_c = grasp_c.reshape(-1, grasp_c.shape[-1])
+                c = torch.cat((obj_c, grasp_c), dim=1)
+            else:
+                c = obj_c
+
+            # dropout context with some probability
+            context_mask = torch.bernoulli(torch.zeros(B, 1) + 1 - self.drop_prob).to(self.device)
+            # Loss for poseing is MSE between added noise, and our predicted noise
+            pose_loss = self.loss_mse(noise, self.posenet(g_t, c, context_mask, _ts / self.n_T))
+        elif self.training_method == "score_based":
+            with TemporaryGrad():  # @note energy-based diffusion model
+                # score-based dropout 先不要
+                context_mask = torch.ones(B, 1).float().to(self.device)
+                random_t = torch.rand(g.shape[0], device=self.device) * (1. - self.eps) + self.eps
+                z = torch.randn_like(g)
+                std = self.marginal_prob_std_fn(random_t)
+                perturbed_g = g + z * std[:, None]
+
+                if self.grasp_obj_joint_embed:
+                    perturbed_g = perturbed_g.reshape(-1, grasp_num, perturbed_g.shape[-1])
+                    grasp_c = self.independent_grasp_pc_embed(self.g2T(perturbed_g), data_scale=data_scale)
+                    grasp_c = grasp_c.reshape(-1, grasp_c.shape[-1])
+                    perturbed_g = perturbed_g.reshape(-1, perturbed_g.shape[-1])
+                    c = torch.cat((obj_c, grasp_c), dim=1)
+                else:
+                    c = obj_c
+
+                # @note energy-based diffusion model
+                dicrect_score = self.posenet(perturbed_g, c, context_mask, random_t)
+                inp_variable_sampled_pose = Variable(perturbed_g, requires_grad=True)
+                energy = torch.sum(inp_variable_sampled_pose * dicrect_score, dim=-1)
+                score, = torch.autograd.grad(energy, inp_variable_sampled_pose,
+                                        grad_outputs=energy.data.new(energy.shape).fill_(1),
+                                        create_graph=True)
+
+                pose_loss = torch.mean(torch.sum((score * std[:, None] + z)**2, dim=1))
+        else:
+            raise BaseException()
+
+        return pose_loss
+
+    def forward(self, xyz, T, data_scale=1.0, method="score_based"):
+        if method == "score_based":
+            return self.score_based_forward(xyz, T, data_scale=data_scale)
+        elif method == "energy_based":
+            return self.energy_based_forward(xyz, T, data_scale=data_scale)
+        else:
+            raise NotImplementedError()
+    
+    def estimate_energy(self, xyz, batch_g, batch_t, data_scale=1.0):
+        # batch_g: [B, 9]
+        B = batch_g.shape[0]
+        context_mask = torch.ones(B, 1).float().to(self.device)
+        batch_g = batch_g.unsqueeze(0)
+        grasp_c = self.independent_grasp_pc_embed(self.g2T(batch_g), data_scale=data_scale)
+        grasp_c = grasp_c.reshape(-1, grasp_c.shape[-1])
+        batch_g = batch_g.reshape(-1, batch_g.shape[-1])
+        c = torch.cat((obj_c, grasp_c), dim=1)
+
+        dicrect_score = self.posenet(batch_g, c, context_mask, batch_t)
+        energy = torch.sum(batch_g * dicrect_score, dim=-1)
+        return energy.detach().cpu().numpy()
     
     def detect_and_sample(self, xyz, n_sample, guide_w, data_scale=1.0):
         """_summary_
