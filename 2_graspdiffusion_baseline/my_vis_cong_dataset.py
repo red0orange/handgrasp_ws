@@ -15,12 +15,6 @@ def transform_pcd(pcd, T):
 
 
 if __name__ == "__main__":
-    # grasp_path = "/home/huangdehao/Projects/grasping-diffusion/data/constrain_data/grasps/1Shelves_1e3df0ab57e8ca8587f357007f9e75d1_0_011099225885734912_1.h5"
-    # data = h5py.File(grasp_path, "r")
-    # print(data["object/scale"][()])
-    # print(data["object/norm_scale"][()])
-    # # exit()
-
     import json
     # grasp_diff_cong_split_json_path = "/home/huangdehao/Projects/handgrasp_ws/2_graspnet_baseline/data/constrained_data_split.json"
     grasp_diff_cong_split_json_path = "/home/huangdehao/Projects/handgrasp_ws/2_graspnet_baseline/data/unconstrained_data_split.json"

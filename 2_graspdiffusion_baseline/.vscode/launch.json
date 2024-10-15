@@ -10,6 +10,9 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+            "args": [
+                // "./data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
+            ],
             "justMyCode": false
         },
         {
@@ -19,7 +22,7 @@
             "program": "my_eval.py",
             "console": "integratedTerminal",
             "env": {
-                "CUDA_VISIBLE_DEVICES": "2"
+                "CUDA_VISIBLE_DEVICES": "0"
             }
         },
         {
@@ -29,7 +32,7 @@
             "program": "my_eval_for_vis.py",
             "console": "integratedTerminal",
             "env": {
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
             }
         },
         {

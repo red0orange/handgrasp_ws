@@ -15,18 +15,16 @@ from torch.utils.data import Dataset, DataLoader
 from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
-class _CONGDataset(Dataset):
-    def __init__(self, data_dir, mode='train', split_json_path=None, n_pointcloud=2048, n_grasps=80, augmented_rotation=True, center_pcl=True, partial=True):
+class _CONGClsDataset(Dataset):
+    def __init__(self, data_dir, mode='train', n_pointcloud=2048, n_grasps=80, augmented_rotation=True, center_pcl=True, partial=True):
         self.data_dir = data_dir
         self.type = mode
 
-        if split_json_path is None:
-            split_json_path = os.path.join(data_dir, 'split.json')
-        self.split_json_file = split_json_path
+        self.split_json_file = os.path.join(data_dir, 'split.json')
         self.split = json.load(open(self.split_json_file, 'r'))
         self.data_files = self.split[mode]
         self.data_files = [os.path.join(data_dir, 'data', i) for i in self.data_files]
-
+        
         # params
         self.n_pointcloud = n_pointcloud
         self.n_grasps = n_grasps
@@ -53,7 +51,7 @@ class _CONGDataset(Dataset):
         # rendering_camera_Ts = pickle_data["rendering/camera_poses"]
 
         # deal grasps
-        grasp_Ts = [i for e, i in enumerate(grasp_Ts) if grasp_successes[e]]
+        # grasp_Ts = [i for e, i in enumerate(grasp_Ts) if grasp_successes[e]]
         grasp_Ts = np.array(grasp_Ts)
         if len(grasp_Ts) == 0:
             return self.__getitem__(np.random.randint(len(self)))
@@ -62,9 +60,9 @@ class _CONGDataset(Dataset):
         random_idx = np.random.choice(len(grasp_Ts), self.n_grasps)
         grasp_Ts = grasp_Ts[random_idx]
 
-        # # @note pre grasp
-        # for i in range(grasp_Ts.shape[0]):
-        #     grasp_Ts[i] = update_pose(grasp_Ts[i], translate=[0, 0, 0.09])
+        # @note pre grasp
+        for i in range(grasp_Ts.shape[0]):
+            grasp_Ts[i] = update_pose(grasp_Ts[i], translate=[0, 0, 0.09])
 
         # scale
         mesh_scale = self.scale
@@ -88,7 +86,7 @@ class _CONGDataset(Dataset):
             grasp_Ts = np.einsum('mn,bnk->bmk', random_R_T, grasp_Ts)   # 应用随机的旋转
             mesh_T[:3, :3] = random_R
 
-        return [data_file], obj_pc, grasp_Ts, mesh_T, mesh_scale
+        return [data_file], obj_pc, grasp_Ts, grasp_successes, mesh_T, mesh_scale
     
     def preprocess_infer_data(self, obj_pc):
         obj_pc_num = obj_pc.shape[0]

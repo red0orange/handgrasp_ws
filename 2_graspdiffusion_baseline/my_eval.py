@@ -15,7 +15,7 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 if __name__ == "__main__":
-    work_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/log/epoch_199_20240923-232338_detectiondiffusion"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     # checkpoint_path = os.path.join(work_dir, "model_epoch_75.pth")
@@ -91,6 +91,7 @@ if __name__ == "__main__":
             results.append(data_dict)
     with open(os.path.join(work_dir, 'eval_results.pkl'), 'wb') as f:
         pickle.dump(results, f)
+    # exit()
     
     results = pickle.load(open(os.path.join(work_dir, 'eval_results.pkl'), 'rb'))
     
@@ -98,13 +99,12 @@ if __name__ == "__main__":
     proj_dir = os.path.dirname(os.path.abspath(__file__))
     mesh_root = os.path.join(proj_dir, 'data/obj_ShapeNetSem/models-OBJ/models')
     isaacgym_eval_data_dict = {}
-    for i, data_dict in enumerate(results):
+    for i, data_dict in tqdm(enumerate(results), total=len(results)):
         isaacgym_eval_data_dict[i] = {}
 
         pickle_data_path = data_dict['filename']
         obj_pc = data_dict['xyz']
         mesh_T = data_dict['mesh_T']
-        obj_pc_center = np.mean(obj_pc, axis=0)
         pickle_data = pickle.load(open(pickle_data_path, 'rb'))
         mesh_fname = os.path.basename(pickle_data["mesh/file"])
         mesh_path = os.path.join(mesh_root, mesh_fname)
@@ -115,12 +115,12 @@ if __name__ == "__main__":
         isaacgym_eval_data_dict[i]['grasp_Ts'] = data_dict['grasp_Ts']
         isaacgym_eval_data_dict[i]['mesh_T'] = mesh_T
 
-        # for debug vis
-        mesh = o3d.io.read_triangle_mesh(mesh_path)
-        mesh.scale(mesh_scale, center=np.zeros(3))
-        mesh.transform(mesh_T)
-        grasp_Ts = data_dict['grasp_Ts']
-        viser_for_grasp.vis_grasp_scene(grasp_Ts, mesh=mesh, pc=obj_pc, max_grasp_num=50)
-        viser_for_grasp.wait_for_reset()
+        # # for debug vis
+        # mesh = o3d.io.read_triangle_mesh(mesh_path)
+        # mesh.scale(mesh_scale, center=np.zeros(3))
+        # mesh.transform(mesh_T)
+        # grasp_Ts = data_dict['grasp_Ts']
+        # viser_for_grasp.vis_grasp_scene(grasp_Ts, mesh=mesh, pc=obj_pc, max_grasp_num=50)
+        # viser_for_grasp.wait_for_reset()
 
     np.save(os.path.join(work_dir, 'isaacgym_eval_results.npy'), isaacgym_eval_data_dict)
