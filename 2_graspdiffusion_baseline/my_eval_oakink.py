@@ -91,6 +91,7 @@ def eval_for_vis(work_dir):
         # pred = model.detect_and_sample(xyz, 10, guide_w=GUIDE_W, data_scale=dataset.scale)
 
         # @note 限制预测
+        # 抓取位置选择与 palm_T 抓取中心最近的物体点的范围
         g_init = np.concatenate((matrix_to_rotation_6d_np(refine_palm_T[:3, :3]), refine_palm_T[:3, 3]), axis=0)
         g_init = torch.from_numpy(g_init).float().cuda()
         pred = model.refine_grasp_sample(xyz, 10, g_init)

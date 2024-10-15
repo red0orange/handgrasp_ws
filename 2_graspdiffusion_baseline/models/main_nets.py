@@ -157,7 +157,17 @@ def new_cal_grasp_refine_score(g_i, g):
 
             self.loss_mse_rot = nn.MSELoss()
             self.loss_mse_trans = nn.MSELoss()
+
+            self.rot_relu = nn.ReLU()
+            self.trans_relu = nn.ReLU()
             pass
+            
+        def rot_relu_func(self, x, center_x_range=np.pi / 4.0):
+            # 输入是角度差值的绝对值
+            return self.rot_relu(x-center_x_range)
+        
+        def trans_relu_func(self, x, center_x_range=0.01*8.0):
+            return self.trans_relu(x-center_x_range)
 
         def forward(self, g):
 
@@ -172,7 +182,7 @@ def new_cal_grasp_refine_score(g_i, g):
             g_T[:, :3, :3] = g_rotation_matrix
             g_T[:, :3, 3] = g_translation
             gripper_depth_T = torch.eye(4, device=g.device)
-            # gripper_depth_T[2, 3] = -0.08
+            gripper_depth_T[2, 3] = 0.06
             g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
             g_translation = g_T[:, :3, 3]
 
@@ -185,8 +195,9 @@ def new_cal_grasp_refine_score(g_i, g):
             g_i_rotation_z_axis = g_i_rotation_z_axis / (torch.norm(g_i_rotation_z_axis, dim=1, keepdim=True) + eps)
             z_angles = torch.acos(torch.clamp(torch.sum(g_rotation_z_axis * g_i_rotation_z_axis, dim=1), -1 + eps, 1 - eps))
 
+            rot_loss = torch.mean(self.rot_relu_func(torch.abs(z_angles)))
+            # trans_loss = torch.mean(self.trans_relu_func(torch.norm(g_translation - g_i_translation, dim=1)))
             # rot_loss = self.loss_mse_rot(g_rotation, g_i_rotation)
-            rot_loss = torch.mean(z_angles)
             trans_loss = self.loss_mse_trans(g_translation, g_i_translation)
             print(trans_loss)
 
@@ -194,7 +205,7 @@ def new_cal_grasp_refine_score(g_i, g):
 
     g = g.clone().detach()
     g.requires_grad_(True)
-    net = GraspRefineScoreNet(g_i, 0.1, 5.0)
+    net = GraspRefineScoreNet(g_i, 1.0, 2.0)
     loss = net(g)
     loss.backward()
 
