@@ -160,9 +160,9 @@ class TemporaryGrad(object):
 
 def new_cal_grasp_refine_score(g_i, g):
     class GraspRefineScoreNet(nn.Module):
-        def __init__(self, g_i, loss_rot_weight=1.0, loss_trans_weight=1.0):
+        def __init__(self, loss_rot_weight=1.0, loss_trans_weight=1.0):
             super(GraspRefineScoreNet, self).__init__()
-            self.g_i = g_i
+            # self.g_i = g_i
             self.loss_rot_weight = loss_rot_weight
             self.loss_trans_weight = loss_trans_weight
 
@@ -180,20 +180,23 @@ def new_cal_grasp_refine_score(g_i, g):
         def trans_relu_func(self, x, center_x_range=0.01*8.0):
             return self.trans_relu(x-center_x_range)
 
-        def forward(self, g):
+        def forward(self, g, g_i):
 
             g_rotation = g[:, :6]
             g_translation = g[:, 6:]
 
-            g_i_rotation = self.g_i[:6][None, ...].repeat(g.shape[0], 1)
-            g_i_translation = self.g_i[6:][None, ...].repeat(g.shape[0], 1)
+            g_i_rotation = g_i[:, :6]
+            g_i_translation = g_i[:, 6:]
+
+            # g_i_rotation = self.g_i[:6][None, ...].repeat(g.shape[0], 1)
+            # g_i_translation = self.g_i[6:][None, ...].repeat(g.shape[0], 1)
 
             g_rotation_matrix = rotation_6d_to_matrix(g_rotation)
             g_T = torch.eye(4, device=g.device)[None, :, :].repeat(g.shape[0], 1, 1)
             g_T[:, :3, :3] = g_rotation_matrix
             g_T[:, :3, 3] = g_translation
             gripper_depth_T = torch.eye(4, device=g.device)
-            gripper_depth_T[2, 3] = 0.08 * 8.0
+            gripper_depth_T[2, 3] = 0.08 * 8.0  # @note 注意，考虑上 dataset scale 的计算
             g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
             g_translation = g_T[:, :3, 3]
 
@@ -216,8 +219,8 @@ def new_cal_grasp_refine_score(g_i, g):
 
     g = g.clone().detach()
     g.requires_grad_(True)
-    net = GraspRefineScoreNet(g_i, 1.0, 2.0)
-    loss = net(g)
+    net = GraspRefineScoreNet(1.0, 4.0)
+    loss = net(g, g_i)
     loss.backward()
 
     return -g.grad
@@ -644,7 +647,7 @@ class ScoreBasedGraspingDiffusion(nn.Module):
         elif self.training_method == "score_based":
             t = torch.ones(n_sample, device=self.device)
             # g_i = torch.randn(n_sample, (self.action_dim)).to(self.device) * self.marginal_prob_std_fn(t)[:, None]
-            g_i = g_init[None, :].repeat(n_sample, 1)
+            g_i = g_init.clone()
             time_steps = torch.linspace(1., self.eps, self.num_steps, device=self.device)
             step_size = time_steps[0] - time_steps[1]
             g = g_i
