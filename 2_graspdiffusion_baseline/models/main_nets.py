@@ -193,7 +193,7 @@ def new_cal_grasp_refine_score(g_i, g):
             g_T[:, :3, :3] = g_rotation_matrix
             g_T[:, :3, 3] = g_translation
             gripper_depth_T = torch.eye(4, device=g.device)
-            gripper_depth_T[2, 3] = 0.06
+            gripper_depth_T[2, 3] = 0.08 * 8.0
             g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
             g_translation = g_T[:, :3, 3]
 

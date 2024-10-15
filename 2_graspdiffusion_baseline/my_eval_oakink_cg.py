@@ -13,6 +13,8 @@ from utils.rotate_rep import rotation_6d_to_matrix_np, matrix_to_rotation_6d_np
 from roboutils.vis.viser_grasp import ViserForGrasp
 from roboutils.proj_llm_robot.pose_transform import update_pose
 
+from scipy.spatial import KDTree
+
 
 def transform_pcd(pcd, T):
     return (T @ np.concatenate([pcd.T, np.ones((1, pcd.shape[0]))], axis=0)).T[:, :3]
@@ -83,6 +85,19 @@ def eval_for_vis(work_dir):
         xyz = dataset.preprocess_infer_data(obj_verts)
         refine_palm_T = my_palm_T.copy()
         refine_palm_T[:3, 3] *= dataset.scale
+
+        # 找出与 palm_T 抓取中心最近的物体点的范围
+        obj_kdtree = KDTree(xyz)
+        palm_grasp_center = refine_palm_T[:3, 3]
+        distances, indices = obj_kdtree.query(palm_grasp_center, k=96)
+
+        # closest_pcs = obj_verts[indices]
+        # viser_for_grasp.add_pcd(closest_pcs, colors=np.array([(255, 0, 0)]*closest_pcs.shape[0]))
+        # viser_for_grasp.add_pcd(hand_verts, colors=np.array([(0, 255, 0)]*hand_verts.shape[0]))
+        # # viser_for_grasp.add_pcd(obj_verts, colors=np.array([(0, 0, 255)]*obj_verts.shape[0]))
+        # viser_for_grasp.wait_for_reset()
+
+        refine_palm_T[:3, 3] = xyz[indices[0]]  # 距离最近的点作为抓取中心
 
         # @note begin infer
         xyz = torch.from_numpy(xyz).unsqueeze(0).float().cuda()
