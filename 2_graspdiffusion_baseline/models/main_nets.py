@@ -723,7 +723,7 @@ class ScoreBasedGraspingDiffusion(nn.Module):
 
                     # refine cost
                     # grad = cal_grasp_refine_score(g_init, g)
-                    grad = new_cal_grasp_refine_score(g_init, g, batch_size=batch_size)
+                    grad = new_cal_grasp_refine_score(g_init, g, batch_size=(batch_size*(n_sample / 10)))
                     refine_weight = 150.000
                     score = score + refine_weight * grad
                     

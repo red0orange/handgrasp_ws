@@ -192,6 +192,7 @@ class OakinkGraspDataset(torch.utils.data.Dataset):
     
 
 def eval_for_isaacgym(work_dir):
+    save_name = "eval_oakink_cg"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     
@@ -221,7 +222,7 @@ def eval_for_isaacgym(work_dir):
     # @note 加载 oakink 数据集
     oakink_data_root = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_Oakink"
     oakink_dataset = OakinkGraspDataset(oakink_data_root, dataset)
-    dataloader = torch.utils.data.DataLoader(oakink_dataset, batch_size=64, shuffle=False, num_workers=16)
+    dataloader = torch.utils.data.DataLoader(oakink_dataset, batch_size=32, shuffle=False, num_workers=16)
 
     results = []
     for data in tqdm(dataloader, total=len(dataloader)):
@@ -264,7 +265,11 @@ def eval_for_isaacgym(work_dir):
         # 开始预测
         xyz = xyz.float().cuda()
 
-        sample_num = 10
+        # 采样 100 个，每 10 个作为一次预测，从每 10 个预测中选出最佳的 1 个
+        each_time_sample_num = 10
+        eval_time_num = 10
+        sample_num = each_time_sample_num * eval_time_num
+
         # 重复 g_init
         input_refine_palm_gs = torch.stack(refine_palm_gs, dim=0).unsqueeze(1).repeat(1, sample_num, 1)
         input_refine_palm_gs = input_refine_palm_gs.reshape(-1, input_refine_palm_gs.shape[-1])
@@ -304,19 +309,32 @@ def eval_for_isaacgym(work_dir):
             viser_for_grasp.add_grasp(vis_palm_T, z_direction=True)
             viser_for_grasp.wait_for_reset()
 
+            # 
+            selected_grasp_Ts = []
+            for grasp_i in range(0, sample_num, each_time_sample_num):
+                cur_grasp_Ts = vis_grasp_Ts[grasp_i:grasp_i+each_time_sample_num]
+
+                # 随机选择
+                random_idx = np.random.choice(cur_grasp_Ts.shape[0], 1)
+                cur_grasp_Ts = cur_grasp_Ts[random_idx]
+                cur_grasp_T = cur_grasp_Ts[0]
+
+                selected_grasp_Ts.append(cur_grasp_T)
+            selected_grasp_Ts = np.array(selected_grasp_Ts)
+
             data_dict = {
                 'filename': batch_i_filename,
                 'mesh_path': batch_i_mesh_path,
                 'xyz': vis_xyz,
-                'grasp_Ts': vis_grasp_Ts,
+                'grasp_Ts': selected_grasp_Ts,
                 'mesh_T': batch_i_mesh_T,
             }
             results.append(data_dict)
-    with open(os.path.join(work_dir, 'oakink_eval_results.pkl'), 'wb') as f:
+    with open(os.path.join(work_dir, '{}.pkl'.format(save_name)), 'wb') as f:
         pickle.dump(results, f)
     # # exit()
     
-    results = pickle.load(open(os.path.join(work_dir, 'oakink_eval_results.pkl'), 'rb'))
+    results = pickle.load(open(os.path.join(work_dir, '{}.pkl'.format(save_name)), 'rb'))
     
     # 将结果转换为 IsaacGym 格式
     isaacgym_eval_data_dict = {}
@@ -341,7 +359,7 @@ def eval_for_isaacgym(work_dir):
         # viser_for_grasp.vis_grasp_scene(grasp_Ts, mesh=mesh, pc=obj_pc, max_grasp_num=50)
         # viser_for_grasp.wait_for_reset()
 
-    np.save(os.path.join(work_dir, 'oakink_isaacgym_eval_results.npy'), isaacgym_eval_data_dict)
+    np.save(os.path.join(work_dir, '{}_isaacgym.npy'.format(save_name)), isaacgym_eval_data_dict)
     pass
 
 
