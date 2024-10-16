@@ -158,64 +158,92 @@ class TemporaryGrad(object):
         torch.set_grad_enabled(self.prev)
 
 
-def new_cal_grasp_refine_score(g_i, g, batch_size=1):
-    class GraspRefineScoreNet(nn.Module):
-        def __init__(self, loss_rot_weight=1.0, loss_trans_weight=1.0):
-            super(GraspRefineScoreNet, self).__init__()
-            # self.g_i = g_i
-            self.loss_rot_weight = loss_rot_weight
-            self.loss_trans_weight = loss_trans_weight
+class GraspRefineScoreNet(nn.Module):
+    def __init__(self, loss_rot_weight=1.0, loss_trans_weight=1.0):
+        super(GraspRefineScoreNet, self).__init__()
+        self.loss_rot_weight = loss_rot_weight
+        self.loss_trans_weight = loss_trans_weight
 
-            self.loss_mse_rot = nn.MSELoss(reduction='mean')
-            self.loss_mse_trans = nn.MSELoss(reduction='mean')
+        self.loss_mse_rot = nn.MSELoss(reduction='mean')
+        self.loss_mse_trans = nn.MSELoss(reduction='mean')
 
-            self.rot_relu = nn.ReLU()
-            self.trans_relu = nn.ReLU()
-            pass
-            
-        def rot_relu_func(self, x, center_x_range=np.pi / 4.0):
-            # 输入是角度差值的绝对值
-            return self.rot_relu(x-center_x_range)
+        self.rot_relu = nn.ReLU()
+        self.trans_relu = nn.ReLU()
+        pass
         
-        def trans_relu_func(self, x, center_x_range=0.01*8.0):
-            return self.trans_relu(x-center_x_range)
+    def rot_relu_func(self, x, center_x_range=np.pi / 4.0):
+        # 输入是角度差值的绝对值
+        return self.rot_relu(x-center_x_range)
+    
+    def trans_relu_func(self, x, center_x_range=0.01*8.0):
+        return self.trans_relu(x-center_x_range)
 
-        def forward(self, g, g_i):
+    def evaluate(self, g, g_i):
+        # 用于 SeE 评估，判断是否在 rot, trans 范围内
+        g_rotation = g[:, :6]
+        g_translation = g[:, 6:]
 
-            g_rotation = g[:, :6]
-            g_translation = g[:, 6:]
+        g_i_rotation = g_i[:, :6]
+        g_i_translation = g_i[:, 6:]
 
-            g_i_rotation = g_i[:, :6]
-            g_i_translation = g_i[:, 6:]
+        g_rotation_matrix = rotation_6d_to_matrix(g_rotation)
+        g_T = torch.eye(4, device=g.device)[None, :, :].repeat(g.shape[0], 1, 1)
+        g_T[:, :3, :3] = g_rotation_matrix
+        g_T[:, :3, 3] = g_translation
+        gripper_depth_T = torch.eye(4, device=g.device)
+        gripper_depth_T[2, 3] = 0.08 * 8.0  # @note 注意，考虑上 dataset scale 的计算
+        g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
+        g_translation = g_T[:, :3, 3]
 
-            # g_i_rotation = self.g_i[:6][None, ...].repeat(g.shape[0], 1)
-            # g_i_translation = self.g_i[6:][None, ...].repeat(g.shape[0], 1)
+        g_i_rotation_matrix = rotation_6d_to_matrix(g_i_rotation)
 
-            g_rotation_matrix = rotation_6d_to_matrix(g_rotation)
-            g_T = torch.eye(4, device=g.device)[None, :, :].repeat(g.shape[0], 1, 1)
-            g_T[:, :3, :3] = g_rotation_matrix
-            g_T[:, :3, 3] = g_translation
-            gripper_depth_T = torch.eye(4, device=g.device)
-            gripper_depth_T[2, 3] = 0.08 * 8.0  # @note 注意，考虑上 dataset scale 的计算
-            g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
-            g_translation = g_T[:, :3, 3]
+        g_rotation_z_axis = g_rotation_matrix[:, :3, 2]
+        g_i_rotation_z_axis = g_i_rotation_matrix[:, :3, 2]
+        eps = 1e-5
+        g_rotation_z_axis = g_rotation_z_axis / (torch.norm(g_rotation_z_axis, dim=1, keepdim=True) + eps)
+        g_i_rotation_z_axis = g_i_rotation_z_axis / (torch.norm(g_i_rotation_z_axis, dim=1, keepdim=True) + eps)
+        z_angles = torch.acos(torch.clamp(torch.sum(g_rotation_z_axis * g_i_rotation_z_axis, dim=1), -1 + eps, 1 - eps))
+        z_angles = torch.abs(z_angles)
 
-            g_i_rotation_matrix = rotation_6d_to_matrix(g_i_rotation)
+        rot_range_idx = (z_angles < np.pi / 4.0)
+        trans_range_idx = (torch.norm(g_translation - g_i_translation, dim=1) < 0.05*8.0)
+        final_idx = (rot_range_idx & trans_range_idx)
+        return final_idx
 
-            g_rotation_z_axis = g_rotation_matrix[:, :3, 2]
-            g_i_rotation_z_axis = g_i_rotation_matrix[:, :3, 2]
-            eps = 1e-5
-            g_rotation_z_axis = g_rotation_z_axis / (torch.norm(g_rotation_z_axis, dim=1, keepdim=True) + eps)
-            g_i_rotation_z_axis = g_i_rotation_z_axis / (torch.norm(g_i_rotation_z_axis, dim=1, keepdim=True) + eps)
-            z_angles = torch.acos(torch.clamp(torch.sum(g_rotation_z_axis * g_i_rotation_z_axis, dim=1), -1 + eps, 1 - eps))
+    def forward(self, g, g_i):
+        g_rotation = g[:, :6]
+        g_translation = g[:, 6:]
 
-            rot_loss = torch.mean(self.rot_relu_func(torch.abs(z_angles)))
-            # trans_loss = torch.mean(self.trans_relu_func(torch.norm(g_translation - g_i_translation, dim=1)))
-            # rot_loss = self.loss_mse_rot(g_rotation, g_i_rotation)
-            trans_loss = self.loss_mse_trans(g_translation, g_i_translation)
-            print(trans_loss)
+        g_i_rotation = g_i[:, :6]
+        g_i_translation = g_i[:, 6:]
 
-            return self.loss_rot_weight * rot_loss + self.loss_trans_weight * trans_loss
+        g_rotation_matrix = rotation_6d_to_matrix(g_rotation)
+        g_T = torch.eye(4, device=g.device)[None, :, :].repeat(g.shape[0], 1, 1)
+        g_T[:, :3, :3] = g_rotation_matrix
+        g_T[:, :3, 3] = g_translation
+        gripper_depth_T = torch.eye(4, device=g.device)
+        gripper_depth_T[2, 3] = 0.08 * 8.0  # @note 注意，考虑上 dataset scale 的计算
+        g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
+        g_translation = g_T[:, :3, 3]
+
+        g_i_rotation_matrix = rotation_6d_to_matrix(g_i_rotation)
+
+        g_rotation_z_axis = g_rotation_matrix[:, :3, 2]
+        g_i_rotation_z_axis = g_i_rotation_matrix[:, :3, 2]
+        eps = 1e-5
+        g_rotation_z_axis = g_rotation_z_axis / (torch.norm(g_rotation_z_axis, dim=1, keepdim=True) + eps)
+        g_i_rotation_z_axis = g_i_rotation_z_axis / (torch.norm(g_i_rotation_z_axis, dim=1, keepdim=True) + eps)
+        z_angles = torch.acos(torch.clamp(torch.sum(g_rotation_z_axis * g_i_rotation_z_axis, dim=1), -1 + eps, 1 - eps))
+
+        rot_loss = torch.mean(self.rot_relu_func(torch.abs(z_angles)))
+        # trans_loss = torch.mean(self.trans_relu_func(torch.norm(g_translation - g_i_translation, dim=1)))
+        # rot_loss = self.loss_mse_rot(g_rotation, g_i_rotation)
+        trans_loss = self.loss_mse_trans(g_translation, g_i_translation)
+        print(trans_loss)
+
+        return self.loss_rot_weight * rot_loss + self.loss_trans_weight * trans_loss
+
+def new_cal_grasp_refine_score(g_i, g, batch_size=1):
 
     g = g.clone().detach()
     g.requires_grad_(True)
