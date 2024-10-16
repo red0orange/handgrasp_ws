@@ -158,7 +158,7 @@ class TemporaryGrad(object):
         torch.set_grad_enabled(self.prev)
 
 
-def new_cal_grasp_refine_score(g_i, g):
+def new_cal_grasp_refine_score(g_i, g, batch_size=1):
     class GraspRefineScoreNet(nn.Module):
         def __init__(self, loss_rot_weight=1.0, loss_trans_weight=1.0):
             super(GraspRefineScoreNet, self).__init__()
@@ -166,8 +166,8 @@ def new_cal_grasp_refine_score(g_i, g):
             self.loss_rot_weight = loss_rot_weight
             self.loss_trans_weight = loss_trans_weight
 
-            self.loss_mse_rot = nn.MSELoss()
-            self.loss_mse_trans = nn.MSELoss()
+            self.loss_mse_rot = nn.MSELoss(reduction='mean')
+            self.loss_mse_trans = nn.MSELoss(reduction='mean')
 
             self.rot_relu = nn.ReLU()
             self.trans_relu = nn.ReLU()
@@ -220,7 +220,7 @@ def new_cal_grasp_refine_score(g_i, g):
     g = g.clone().detach()
     g.requires_grad_(True)
     net = GraspRefineScoreNet(1.0, 4.0)
-    loss = net(g, g_i)
+    loss = net(g, g_i) * batch_size  # 保证 grad 尺度一致
     loss.backward()
 
     return -g.grad
@@ -686,6 +686,53 @@ class ScoreBasedGraspingDiffusion(nn.Module):
                     g = g_mean + torch.sqrt(step_size) * sde_g[:, None] * torch.randn_like(g)
             
             return g.detach().cpu().numpy()
+        else:
+            raise NotImplementedError()
+    
+    def batch_refine_grasp_sample(self, xyz, n_sample, g_init, data_scale=1.0):
+        if self.training_method == "ddpm":
+            raise NotImplementedError()
+        elif self.training_method == "score_based":
+            batch_size = xyz.shape[0]
+            t = torch.ones([batch_size * n_sample], device=self.device)
+            g_i = g_init.clone()
+            time_steps = torch.linspace(1., self.eps, self.num_steps, device=self.device)
+            step_size = time_steps[0] - time_steps[1]
+            g = g_i
+            context_mask = torch.ones((batch_size * n_sample, 1)).float().to(self.device)
+            with torch.no_grad():
+                obj_c = self.independent_obj_pc_embed(xyz, grasp_num=n_sample)
+            for time_step in time_steps:
+                step_num = 1
+                if time_step < 0.2:  # for refine
+                    step_num = 3
+
+                for i in range(step_num):
+                    with torch.no_grad():
+                        if self.grasp_obj_joint_embed:
+                            grasp_c = self.independent_grasp_pc_embed(self.g2T(g)[None, ...], data_scale=data_scale)
+                            c = obj_c.reshape(-1, obj_c.shape[-1])
+                            c = torch.cat((c, grasp_c.squeeze(0)), dim=1)
+                        else:
+                            c = obj_c.reshape(-1, obj_c.shape[-1])
+
+                        batch_time_step = torch.ones(batch_size*n_sample, device=self.device) * time_step
+                        sde_g = self.diffusion_coeff_fn(batch_time_step)
+
+                        score = self.posenet(g, c, context_mask, batch_time_step)
+
+                    # refine cost
+                    # grad = cal_grasp_refine_score(g_init, g)
+                    grad = new_cal_grasp_refine_score(g_init, g, batch_size=batch_size)
+                    refine_weight = 150.000
+                    score = score + refine_weight * grad
+                    
+                    # 下面是核心的采样公式
+                    g_mean = g + (sde_g ** 2)[:, None] * score  * step_size
+                    g = g_mean + torch.sqrt(step_size) * sde_g[:, None] * torch.randn_like(g)
+                
+            res_g = g.reshape(batch_size, n_sample, -1)
+            return res_g.detach().cpu().numpy()
         else:
             raise NotImplementedError()
 

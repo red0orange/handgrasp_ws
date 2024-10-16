@@ -109,6 +109,7 @@ def eval_for_vis(work_dir):
         # 抓取位置选择与 palm_T 抓取中心最近的物体点的范围
         g_init = np.concatenate((matrix_to_rotation_6d_np(refine_palm_T[:3, :3]), refine_palm_T[:3, 3]), axis=0)
         g_init = torch.from_numpy(g_init).float().cuda()
+        g_init = g_init.unsqueeze(0).repeat(10, 1)
         pred = model.refine_grasp_sample(xyz, 10, g_init)
 
         xyz = xyz.squeeze(0).cpu().numpy()
@@ -185,6 +186,7 @@ class OakinkGraspDataset(torch.utils.data.Dataset):
 
         obj_verts = self.ori_dataset.preprocess_infer_data(obj_verts)
         mesh_T[:3, 3] *= self.ori_dataset.scale
+        my_palm_T[:3, 3] *= self.ori_dataset.scale
 
         return [data_path], [mesh_path], obj_verts, mesh_T, my_palm_T, hand_verts
     
@@ -192,7 +194,6 @@ class OakinkGraspDataset(torch.utils.data.Dataset):
 def eval_for_isaacgym(work_dir):
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
-    # checkpoint_path = os.path.join(work_dir, "model_epoch_75.pth")
     
     GUIDE_W = 0.5
     DEVICE=torch.device('cuda')
@@ -222,56 +223,97 @@ def eval_for_isaacgym(work_dir):
     oakink_dataset = OakinkGraspDataset(oakink_data_root, dataset)
     dataloader = torch.utils.data.DataLoader(oakink_dataset, batch_size=64, shuffle=False, num_workers=16)
 
-    # results = []
-    # for data in tqdm(dataloader, total=len(dataloader)):
-    #     file_paths, mesh_paths, obj_verts, mesh_T, my_palm_T, hand_verts = data[0], data[1], data[2], data[3], data[4], data[5]
-    #     file_paths = file_paths[0]
-    #     mesh_paths = mesh_paths[0]
-    #     xyz = obj_verts
+    results = []
+    for data in tqdm(dataloader, total=len(dataloader)):
+        file_paths, mesh_paths, obj_verts, mesh_T, my_palm_Ts, hand_verts = data[0], data[1], data[2], data[3], data[4], data[5]
+        file_paths = file_paths[0]
+        mesh_paths = mesh_paths[0]
+        xyz = obj_verts
 
-    #     xyz = xyz.float().cuda()
-    #     pred = model.batch_detect_and_sample(xyz, 10, guide_w=GUIDE_W, data_scale=dataset.scale)
-    #     xyz = xyz.cpu().numpy()
+        # 处理 palm_T
+        refine_palm_Ts = []
+        refine_palm_gs = []
+        for i in range(len(my_palm_Ts)):
+            cur_obj_verts = obj_verts[i].cpu().numpy()
+            cur_hand_verts = hand_verts[i].cpu().numpy()
+            my_palm_T = my_palm_Ts[i].cpu().numpy()
 
-    #     batch_size = pred.shape[0]
-    #     num_grasp = pred.shape[1]
-    #     pred = pred.reshape(-1, pred.shape[-1])  # 先展平
-    #     num_pose = pred.shape[0]
-    #     if not rot6d_rep:
-    #         raise NotImplementedError
-    #     else:
-    #         rotation = rotation_6d_to_matrix_np(pred[:, :6])
-    #         rotation = np.concatenate((rotation, np.zeros((num_pose, 1, 3), dtype=np.float32)), axis=1)
-    #         translation = np.expand_dims(np.concatenate((pred[:, 6:], np.ones((num_pose, 1), dtype=np.float32)), axis=1), axis=2)
-    #     grasp_Ts = np.concatenate((rotation, translation), axis=2)
-    #     grasp_Ts = grasp_Ts.reshape(batch_size, num_grasp, 4, 4)
+            obj_kdtree = KDTree(cur_obj_verts)
+            palm_grasp_center = my_palm_T[:3, 3]
+            distances, indices = obj_kdtree.query(palm_grasp_center, k=96)
 
-    #     for batch_i in range(batch_size):
-    #         batch_i_filename = file_paths[batch_i]
-    #         batch_i_mesh_path = mesh_paths[batch_i]
-    #         batch_i_xyz = xyz[batch_i]
-    #         batch_i_grasp_Ts = grasp_Ts[batch_i]
-    #         batch_i_mesh_T = mesh_T[batch_i].cpu().numpy()
+            refine_palm_T = my_palm_T.copy()
+            refine_palm_T[:3, 3] = cur_obj_verts[indices[0]]  # 距离最近的点作为抓取中心
+            refine_palm_Ts.append(refine_palm_T)
 
-    #         vis_xyz, vis_grasp_Ts = batch_i_xyz.copy(), batch_i_grasp_Ts.copy()
-    #         vis_xyz /= dataset.scale
-    #         vis_grasp_Ts[:, :3, 3] /= dataset.scale
-    #         batch_i_mesh_T[:3, 3] /= dataset.scale
+            # # debug
+            # closest_pcs = cur_obj_verts[indices]
+            # viser_for_grasp.add_pcd(closest_pcs, colors=np.array([(255, 0, 0)]*closest_pcs.shape[0]))
+            # viser_for_grasp.add_pcd(cur_hand_verts, colors=np.array([(0, 255, 0)]*cur_hand_verts.shape[0]))
+            # # viser_for_grasp.add_pcd(obj_verts, colors=np.array([(0, 0, 255)]*obj_verts.shape[0]))
+            # viser_for_grasp.add_grasp(my_palm_T, z_direction=True)
+            # viser_for_grasp.add_grasp(refine_palm_T, z_direction=True)
+            # print("wait for reset")
+            # viser_for_grasp.wait_for_reset()
 
-    #         # # debug vis
-    #         # viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=50)
-    #         # viser_for_grasp.wait_for_reset()
+            g_init = np.concatenate((matrix_to_rotation_6d_np(refine_palm_T[:3, :3]), refine_palm_T[:3, 3]), axis=0)
+            g_init = torch.from_numpy(g_init).float().cuda()
+            refine_palm_gs.append(g_init)
+        refine_palm_Ts = np.array(refine_palm_Ts)
 
-    #         data_dict = {
-    #             'filename': batch_i_filename,
-    #             'mesh_path': batch_i_mesh_path,
-    #             'xyz': vis_xyz,
-    #             'grasp_Ts': vis_grasp_Ts,
-    #             'mesh_T': batch_i_mesh_T,
-    #         }
-    #         results.append(data_dict)
-    # with open(os.path.join(work_dir, 'oakink_eval_results.pkl'), 'wb') as f:
-    #     pickle.dump(results, f)
+        # 开始预测
+        xyz = xyz.float().cuda()
+
+        sample_num = 10
+        # 重复 g_init
+        input_refine_palm_gs = torch.stack(refine_palm_gs, dim=0).unsqueeze(1).repeat(1, sample_num, 1)
+        input_refine_palm_gs = input_refine_palm_gs.reshape(-1, input_refine_palm_gs.shape[-1])
+        pred = model.batch_refine_grasp_sample(xyz, sample_num, g_init=input_refine_palm_gs, data_scale=dataset.scale)
+        xyz = xyz.cpu().numpy()
+
+        batch_size = pred.shape[0]
+        num_grasp = pred.shape[1]
+        pred = pred.reshape(-1, pred.shape[-1])  # 先展平
+        num_pose = pred.shape[0]
+        if not rot6d_rep:
+            raise NotImplementedError
+        else:
+            rotation = rotation_6d_to_matrix_np(pred[:, :6])
+            rotation = np.concatenate((rotation, np.zeros((num_pose, 1, 3), dtype=np.float32)), axis=1)
+            translation = np.expand_dims(np.concatenate((pred[:, 6:], np.ones((num_pose, 1), dtype=np.float32)), axis=1), axis=2)
+        grasp_Ts = np.concatenate((rotation, translation), axis=2)
+        grasp_Ts = grasp_Ts.reshape(batch_size, num_grasp, 4, 4)
+
+        for batch_i in range(batch_size):
+            batch_i_filename = file_paths[batch_i]
+            batch_i_mesh_path = mesh_paths[batch_i]
+            batch_i_xyz = xyz[batch_i]
+            batch_i_grasp_Ts = grasp_Ts[batch_i]
+            batch_i_mesh_T = mesh_T[batch_i].cpu().numpy()
+            batch_i_palm_T = my_palm_Ts[batch_i].cpu().numpy()
+
+            vis_xyz, vis_grasp_Ts = batch_i_xyz.copy(), batch_i_grasp_Ts.copy()
+            vis_palm_T = batch_i_palm_T.copy()
+            vis_xyz /= dataset.scale
+            vis_grasp_Ts[:, :3, 3] /= dataset.scale
+            vis_palm_T[:3, 3] /= dataset.scale
+            batch_i_mesh_T[:3, 3] /= dataset.scale
+
+            # debug vis
+            viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=50)
+            viser_for_grasp.add_grasp(vis_palm_T, z_direction=True)
+            viser_for_grasp.wait_for_reset()
+
+            data_dict = {
+                'filename': batch_i_filename,
+                'mesh_path': batch_i_mesh_path,
+                'xyz': vis_xyz,
+                'grasp_Ts': vis_grasp_Ts,
+                'mesh_T': batch_i_mesh_T,
+            }
+            results.append(data_dict)
+    with open(os.path.join(work_dir, 'oakink_eval_results.pkl'), 'wb') as f:
+        pickle.dump(results, f)
     # # exit()
     
     results = pickle.load(open(os.path.join(work_dir, 'oakink_eval_results.pkl'), 'rb'))
@@ -306,6 +348,6 @@ def eval_for_isaacgym(work_dir):
 if __name__ == "__main__":
     work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
 
-    eval_for_vis(work_dir)
-    # eval_for_isaacgym(work_dir)
+    # eval_for_vis(work_dir)
+    eval_for_isaacgym(work_dir)
     pass
