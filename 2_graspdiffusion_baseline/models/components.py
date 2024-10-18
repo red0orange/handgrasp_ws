@@ -3,8 +3,10 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.jit import Final
 
 from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
+from timm.models.vision_transformer import RmsNorm, use_fused_attn
 
 from .pointnet_util import PointNetSetAbstractionMsg, PointNetSetAbstraction, PointNetFeaturePropagation
 
@@ -191,6 +193,120 @@ def modulate(x, shift, scale):
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
 
+class CrossAttention(nn.Module):
+    """
+    A cross-attention layer with flash attention.
+    """
+    fused_attn: Final[bool]
+    def __init__(
+            self,
+            dim: int,
+            num_heads: int = 8,
+            qkv_bias: bool = False,
+            qk_norm: bool = False,
+            attn_drop: float = 0,
+            proj_drop: float = 0,
+            norm_layer: nn.Module = nn.LayerNorm,
+    ) -> None:
+        super().__init__()
+        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.scale = self.head_dim ** -0.5
+        self.fused_attn = use_fused_attn()
+
+        self.q = nn.Linear(dim, dim, bias=qkv_bias)
+        self.kv = nn.Linear(dim, dim * 2, bias=qkv_bias)
+        self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+    
+    def forward(self, x: torch.Tensor, c: torch.Tensor, 
+                mask = None) -> torch.Tensor:
+        B, N, C = x.shape
+        _, L, _ = c.shape
+        q = self.q(x).reshape(B, N, self.num_heads, self.head_dim).permute(0, 2, 1, 3)
+        kv = self.kv(c).reshape(B, L, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        k, v = kv.unbind(0)
+        q, k = self.q_norm(q), self.k_norm(k)
+
+        # Prepare attn mask (B, L) to mask the conditioion
+        if mask is not None:
+            mask = mask.reshape(B, 1, 1, L)
+            mask = mask.expand(-1, -1, N, -1)
+        
+        if self.fused_attn:
+            x = F.scaled_dot_product_attention(
+                query=q,
+                key=k,
+                value=v,
+                dropout_p=self.attn_drop.p if self.training else 0.,
+                attn_mask=mask
+            )
+        else:
+            q = q * self.scale
+            attn = q @ k.transpose(-2, -1)
+            if mask is not None:
+                attn = attn.masked_fill_(mask.logical_not(), float('-inf'))
+            attn = attn.softmax(dim=-1)
+            if self.attn_drop.p > 0:
+                attn = self.attn_drop(attn)
+            x = attn @ v
+            
+        x = x.permute(0, 2, 1, 3).reshape(B, N, C)
+        x = self.proj(x)
+        if self.proj_drop.p > 0:
+            x = self.proj_drop(x)
+        return x
+
+
+class RDTBlock(nn.Module):
+    """
+    A RDT block with cross-attention conditioning.
+    """
+    def __init__(self, hidden_size, num_heads, **block_kwargs):
+        super().__init__()
+        self.norm1 = RmsNorm(hidden_size, eps=1e-6)
+        self.attn = Attention(
+            dim=hidden_size, num_heads=num_heads, 
+            qkv_bias=True, qk_norm=True, 
+            norm_layer=RmsNorm,**block_kwargs)
+        self.cross_attn = CrossAttention(
+            hidden_size, num_heads=num_heads, 
+            qkv_bias=True, qk_norm=True, 
+            norm_layer=RmsNorm,**block_kwargs)
+        
+        self.norm2 = RmsNorm(hidden_size, eps=1e-6)
+        approx_gelu = lambda: nn.GELU(approximate="tanh")
+        self.ffn = Mlp(in_features=hidden_size, 
+            hidden_features=hidden_size, 
+            act_layer=approx_gelu, drop=0)
+        self.norm3 = RmsNorm(hidden_size, eps=1e-6)
+
+    def forward(self, x, c, mask=None):
+        # @note 我手动把序列长度设为 1
+        c = c.unsqueeze(1)        
+
+        origin_x = x
+        x = self.norm1(x)
+        x = self.attn(x)
+        x = x + origin_x
+        
+        origin_x = x
+        x = self.norm2(x)
+        x = self.cross_attn(x, c, mask)
+        x = x + origin_x
+                
+        origin_x = x
+        x = self.norm3(x)
+        x = self.ffn(x)
+        x = x + origin_x
+        
+        return x
+
+
 class DiTBlock(nn.Module):
     """
     A DiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
@@ -216,14 +332,21 @@ class DiTBlock(nn.Module):
 
 
 class TransformerPoseNet(nn.Module):
-    def __init__(self, action_dim, pointnet_dim=1024):
+    def __init__(self, action_dim, pointnet_dim=1024, block_type='RDT'):
         super().__init__()
         depth       = 8
         hidden_size = 256
         mlp_ratio   = 4.0
         num_heads   = 8
+        self.block_type = block_type
+        if block_type == 'RDT':
+            block_cls = RDTBlock
+        elif block_type == 'DiT':
+            block_cls = DiTBlock
         self.blocks = nn.ModuleList([
-            DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio) for _ in range(depth)
+            # DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio) for _ in range(depth)
+            # RDTBlock(hidden_size, num_heads) for _ in range(depth)
+            block_cls(hidden_size, num_heads) for _ in range(depth)
         ])
         self.point_net = nn.Sequential(
             nn.Linear(pointnet_dim, hidden_size),
@@ -255,9 +378,10 @@ class TransformerPoseNet(nn.Module):
         self.apply(_basic_init)
 
         # Zero-out adaLN modulation layers in DiT blocks:
-        for block in self.blocks:
-            nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
-            nn.init.constant_(block.adaLN_modulation[-1].bias, 0)
+        if self.block_type == 'DiT':
+            for block in self.blocks:
+                nn.init.constant_(block.adaLN_modulation[-1].weight, 0)
+                nn.init.constant_(block.adaLN_modulation[-1].bias, 0)
         pass
         
     def forward(self, g, c, context_mask, _t):
