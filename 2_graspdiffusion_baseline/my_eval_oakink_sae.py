@@ -70,7 +70,7 @@ class OakinkGraspDataset(torch.utils.data.Dataset):
     
 
 def eval_for_isaacgym(work_dir):
-    save_name = "eval_oakink_sae"
+    save_name = "eval_oakink_sae_1000"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     
@@ -100,7 +100,7 @@ def eval_for_isaacgym(work_dir):
     # @note 加载 oakink 数据集
     oakink_data_root = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_Oakink"
     oakink_dataset = OakinkGraspDataset(oakink_data_root, dataset)
-    dataloader = torch.utils.data.DataLoader(oakink_dataset, batch_size=4, shuffle=False, num_workers=16)
+    dataloader = torch.utils.data.DataLoader(oakink_dataset, batch_size=1, shuffle=False, num_workers=16)
 
     grasp_eva = GraspRefineScoreNet()
     results = []
@@ -145,7 +145,7 @@ def eval_for_isaacgym(work_dir):
         xyz = xyz.float().cuda()
 
         # 采样 100 个，每 100 个作为一次预测，从每 10 个预测中选出最佳的 1 个
-        each_time_sample_num = 100
+        each_time_sample_num = 1000
         eval_time_num = 10
         sample_num = each_time_sample_num * eval_time_num
 
