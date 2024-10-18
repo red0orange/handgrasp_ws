@@ -27,7 +27,7 @@ scheduler = dict(
 
 optimizer = dict(
     type='adam',
-    lr=1e-3,
+    lr=3e-4,
     betas=(0.9, 0.999),
     eps=1e-04,                  # @note 与 Loss nan 有关，把这个值改大
     weight_decay=1e-5,
@@ -58,5 +58,5 @@ training_cfg = dict(
 data = dict(
     type="CONG",
     data_dir="./data/grasp_CONG_graspldm",
-    split_json_path="/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/selected_valid_split.json"
+    split_json_path="/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/selected_valid_split.json"
 )
