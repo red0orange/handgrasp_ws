@@ -263,7 +263,7 @@ def eval_for_isaacgym(work_dir):
 
 
 if __name__ == "__main__":
-    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241018-165026_detectiondiffusion"
 
     # eval_for_vis(work_dir)
     eval_for_isaacgym(work_dir)
