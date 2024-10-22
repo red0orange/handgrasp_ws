@@ -27,7 +27,7 @@ scheduler = dict(
 
 optimizer = dict(
     type='adam',
-    lr=3e-4,
+    lr=1e-3,
     betas=(0.9, 0.999),
     eps=1e-04,                  # @note 与 Loss nan 有关，把这个值改大
     weight_decay=1e-5,
