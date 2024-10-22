@@ -100,7 +100,7 @@ def eval_for_isaacgym(work_dir):
     # @note 加载 oakink 数据集
     oakink_data_root = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_Oakink"
     oakink_dataset = OakinkGraspDataset(oakink_data_root, dataset)
-    dataloader = torch.utils.data.DataLoader(oakink_dataset, batch_size=4, shuffle=False, num_workers=16)
+    dataloader = torch.utils.data.DataLoader(oakink_dataset, batch_size=8, shuffle=False, num_workers=16)
 
     grasp_eva = GraspRefineScoreNet()
     results = []
@@ -263,7 +263,7 @@ def eval_for_isaacgym(work_dir):
 
 
 if __name__ == "__main__":
-    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241018-165026_detectiondiffusion"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241019-115052_detectiondiffusion"
 
     # eval_for_vis(work_dir)
     eval_for_isaacgym(work_dir)

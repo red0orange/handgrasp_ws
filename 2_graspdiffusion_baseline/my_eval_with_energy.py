@@ -14,6 +14,28 @@ from roboutils.vis.viser_grasp import ViserForGrasp
 from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
+def generate_blue_gradient(num_colors):
+    # 起始颜色（浅蓝色）和终止颜色（深蓝色）的 RGB 值
+    light_blue = (173, 216, 230)  # 浅蓝色
+    dark_blue = (0, 0, 139)       # 深蓝色
+    
+    # 生成颜色列表
+    gradient_colors = []
+    
+    for i in range(num_colors):
+        # 计算比例
+        ratio = i / (num_colors - 1)
+        
+        # 按比例插值计算每个颜色分量
+        r = int(light_blue[0] * (1 - ratio) + dark_blue[0] * ratio)
+        g = int(light_blue[1] * (1 - ratio) + dark_blue[1] * ratio)
+        b = int(light_blue[2] * (1 - ratio) + dark_blue[2] * ratio)
+        
+        gradient_colors.append((r, g, b))
+    
+    return gradient_colors
+
+
 if __name__ == "__main__":
     GUIDE_W = 0.5
     DEVICE=torch.device('cuda')
@@ -39,7 +61,7 @@ if __name__ == "__main__":
     dataset = build_dataset(cfg)['test_set']
     # dataset = build_dataset(cfg)['train_set']
     rot6d_rep = cfg.hyper_params.rot6d_rep
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=8)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=False, num_workers=8)
     
     print("Loading checkpoint....")
     _, exten = os.path.splitext(checkpoint_path)
@@ -54,7 +76,8 @@ if __name__ == "__main__":
     viser_for_grasp = ViserForGrasp()
     model.eval()
     results = []
-    grasp_per_obj = 40  # 采集 40 个，根据 energy 排序选择 top 10 个
+    grasp_per_obj = 10  # 采集 40 个，根据 energy 排序选择 top 10 个
+    grasp_colors = generate_blue_gradient(grasp_per_obj)
     for data in tqdm(dataloader, total=len(dataloader)):
         # ori_xyz, xyz, gt_T, _, _ = data
         filename, xyz, gt_T, mesh_T = data[0], data[1], data[2], data[3]
@@ -76,10 +99,11 @@ if __name__ == "__main__":
         # pred_g: (batch_size, num_grasp, 9)
         # energy: (batch_size, num_grasp)
         batch_size, grasp_num, _ = pred_g.shape
-        sorted_idx = np.argsort(-energy, axis=1)[:, :10]
+        sorted_idx = np.argsort(energy, axis=1)
+        # sorted_idx = np.argsort(-energy, axis=1)[:, :10]
         # sorted_idx = np.argsort(energy, axis=1)[:, :10]
-        selected_pred_g = pred_g[np.arange(batch_size)[:, None], sorted_idx]
-        pred_g = selected_pred_g
+        # selected_pred_g = pred_g[np.arange(batch_size)[:, None], sorted_idx]
+        # pred_g = selected_pred_g
 
         # # 随机选择 10 个
         # pred_g = pred_g[:, np.random.choice(pred_g.shape[1], 10, replace=False), :]
@@ -108,9 +132,15 @@ if __name__ == "__main__":
             vis_grasp_Ts[:, :3, 3] /= dataset.scale
             batch_i_mesh_T[:3, 3] /= dataset.scale
 
-            # # debug vis
-            # viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=50)
-            # viser_for_grasp.wait_for_reset()
+            energy_sorted_idx = sorted_idx[batch_i]
+            batch_energy = energy[batch_i]
+            sorted_energy = batch_energy[energy_sorted_idx]
+            print(sorted_energy)
+            energy_sorted_grasp_colors = [grasp_colors[idx] for idx in energy_sorted_idx]
+
+            # debug vis
+            viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=50, grasp_colors=energy_sorted_grasp_colors)
+            viser_for_grasp.wait_for_reset()
 
             data_dict = {
                 'filename': bathc_i_filename,

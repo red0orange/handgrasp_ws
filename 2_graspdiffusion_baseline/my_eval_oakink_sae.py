@@ -145,7 +145,7 @@ def eval_for_isaacgym(work_dir):
         xyz = xyz.float().cuda()
 
         # 采样 100 个，每 100 个作为一次预测，从每 10 个预测中选出最佳的 1 个
-        each_time_sample_num = 1000
+        each_time_sample_num = 100
         eval_time_num = 10
         sample_num = each_time_sample_num * eval_time_num
 
@@ -226,12 +226,12 @@ def eval_for_isaacgym(work_dir):
                     selected_grasp_Ts.append(cur_grasp_T)
             selected_grasp_Ts = np.array(selected_grasp_Ts)
 
-            # # debug vis
-            # # viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=1000)
-            # # viser_for_grasp.wait_for_reset()
-            # viser_for_grasp.vis_grasp_scene(selected_grasp_Ts, pc=vis_xyz, max_grasp_num=1000)
-            # viser_for_grasp.add_grasp(vis_palm_T, z_direction=True)
+            # debug vis
+            # viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=1000)
             # viser_for_grasp.wait_for_reset()
+            viser_for_grasp.vis_grasp_scene(selected_grasp_Ts, pc=vis_xyz, max_grasp_num=1000)
+            viser_for_grasp.add_grasp(vis_palm_T, z_direction=True, grasp_color=(0, 255, 0))
+            viser_for_grasp.wait_for_reset()
 
             data_dict = {
                 'filename': batch_i_filename,

@@ -127,19 +127,23 @@ def eval_for_vis(work_dir):
         vis_xyz, vis_T = xyz.copy(), T.copy()
         vis_xyz /= dataset.scale
         vis_T[:, :3, 3] /= dataset.scale
+        vis_refine_palm_T = refine_palm_T.copy()
+        vis_refine_palm_T[:3, 3] /= dataset.scale
 
-
-        rotate_T = update_pose(np.eye(4), rotate=np.pi/2, rotate_axis="y")
-        vis_xyz = transform_pcd(vis_xyz, rotate_T)
-        hand_mesh.transform(rotate_T)
-        my_palm_T = rotate_T @ my_palm_T
-        vis_T = [rotate_T @ t for t in vis_T]
+        # rotate_T = update_pose(np.eye(4), rotate=np.pi/2, rotate_axis="y")
+        # vis_xyz = transform_pcd(vis_xyz, rotate_T)
+        # hand_mesh.transform(rotate_T)
+        # my_palm_T = rotate_T @ my_palm_T
+        # vis_T = [rotate_T @ t for t in vis_T]
+        # vis_refine_palm_T = rotate_T @ vis_refine_palm_T
 
         # debug vis
         print("Waiiting for viser visualization")
         viser_for_grasp.vis_grasp_scene(vis_T, pc=vis_xyz, max_grasp_num=50)
-        viser_for_grasp.add_mesh(hand_mesh)
-        viser_for_grasp.add_grasp(my_palm_T, z_direction=True)
+        # viser_for_grasp.add_pcd(vis_xyz)
+        # viser_for_grasp.add_mesh(hand_mesh)
+        # viser_for_grasp.add_grasp(my_palm_T, z_direction=True, grasp_color=(255, 0, 0))
+        viser_for_grasp.add_grasp(vis_refine_palm_T, z_direction=True, grasp_color=(0, 255, 0))
         viser_for_grasp.wait_for_reset()
 
 
@@ -366,6 +370,6 @@ def eval_for_isaacgym(work_dir):
 if __name__ == "__main__":
     work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
 
-    # eval_for_vis(work_dir)
-    eval_for_isaacgym(work_dir)
+    eval_for_vis(work_dir)
+    # eval_for_isaacgym(work_dir)
     pass

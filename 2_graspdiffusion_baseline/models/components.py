@@ -332,13 +332,15 @@ class DiTBlock(nn.Module):
     """
     def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, **block_kwargs):
         super().__init__()
-        # self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.norm1 = RmsNorm(hidden_size, eps=1e-6)
-        # self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
-        self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, qk_norm=True, 
-            norm_layer=RmsNorm, **block_kwargs)
-        # self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.norm2 = RmsNorm(hidden_size, eps=1e-6)
+        self.norm1 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
+        self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+
+        # self.norm1 = RmsNorm(hidden_size, eps=1e-6)
+        # self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=True, qk_norm=True, 
+        #     norm_layer=RmsNorm, **block_kwargs)
+        # self.norm2 = RmsNorm(hidden_size, eps=1e-6)
+
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: nn.GELU(approximate="tanh")
         self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
@@ -377,22 +379,23 @@ class TransformerPoseNet(nn.Module):
             nn.Linear(hidden_size, hidden_size)
         )
         self.time_net = SinusoidalPositionEmbeddings(dim=hidden_size)
-        # self.up_net = nn.Sequential(
-        #     nn.Linear(action_dim, 128),
-        #     nn.GELU(),
-        #     nn.Linear(128, hidden_size)
-        # )
-        # self.down_net = nn.Sequential(
-        #     nn.Linear(hidden_size, 128),
-        #     nn.GELU(),
-        #     nn.Linear(128, action_dim)
-        # )
+
         self.up_net = nn.Sequential(
-            nn.Linear(action_dim, hidden_size),
-            nn.GELU(approximate="tanh"),
-            nn.Linear(hidden_size, hidden_size)
+            nn.Linear(action_dim, 128),
+            nn.GELU(),
+            nn.Linear(128, hidden_size)
         )
-        self.down_net = FinalLayer(hidden_size, action_dim)
+        self.down_net = nn.Sequential(
+            nn.Linear(hidden_size, 128),
+            nn.GELU(),
+            nn.Linear(128, action_dim)
+        )
+        # self.up_net = nn.Sequential(
+        #     nn.Linear(action_dim, hidden_size),
+        #     nn.GELU(approximate="tanh"),
+        #     nn.Linear(hidden_size, hidden_size)
+        # )
+        # self.down_net = FinalLayer(hidden_size, action_dim)
 
         self.initialize_weights()
         pass

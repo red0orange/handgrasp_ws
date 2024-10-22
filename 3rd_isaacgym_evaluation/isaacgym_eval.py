@@ -91,29 +91,30 @@ class IsaacGymGraspEva(object):
         if debug_vis and (not self.break_flag):
             mesh = o3d.io.read_triangle_mesh(tmp_obj_mesh_path)
             pc = np.array(mesh.vertices)
-            print(f"Grasp num: {len(grasp_Ts)}")
-            for i in range(len(grasp_Ts)):
-                print("current grasp id: ", i)
-                grasp_T = grasp_Ts[i]
 
-                # @note
-                grasp_T = update_pose(grasp_T, translate=[0, 0, 0.08])
+            # print(f"Grasp num: {len(grasp_Ts)}")
+            # for i in range(len(grasp_Ts)):
+            #     print("current grasp id: ", i)
+            #     grasp_T = grasp_Ts[i]
 
-                self.viser_grasp.vis_grasp_scene(max_grasp_num=1, pc=pc, grasp_Ts=[grasp_T], mesh=mesh)
-                break_flag = self.viser_grasp.wait_for_reset()
-                if break_flag:
-                    self.break_flag = True
-                    break
+            #     # @note
+            #     grasp_T = update_pose(grasp_T, translate=[0, 0, 0.08])
 
-            # viser_grasp.vis_grasp_scene(max_grasp_num=40, pc=pc, grasp_Ts=grasp_Ts, mesh=mesh)
-            # viser_grasp.wait_for_reset()
+            #     self.viser_grasp.vis_grasp_scene(max_grasp_num=1, pc=pc, grasp_Ts=[grasp_T], mesh=mesh)
+            #     break_flag = self.viser_grasp.wait_for_reset()
+            #     if break_flag:
+            #         self.break_flag = True
+            #         break
+
+            self.viser_grasp.vis_grasp_scene(max_grasp_num=40, pc=pc, grasp_Ts=grasp_Ts, mesh=mesh)
+            self.viser_grasp.wait_for_reset()
 
         scales = [1.0] * len(grasp_Ts)
         # try:
         if True:
             n_envs = min(len(grasp_Ts), 500)
             grasp_evaluator = AnyGraspSuccessEvaluator(obj_mesh_path=tmp_obj_mesh_path, rotations=None, scales=scales, 
-                                                    n_envs=n_envs, viewer=False, device=self.device, enable_rel_trafo=False)
+                                                    n_envs=n_envs, viewer=True, device=self.device, enable_rel_trafo=False)
             success_cases, success_flags = grasp_evaluator.eval_set_of_grasps(torch.tensor(grasp_Ts, device=self.device))
         # except Exception as e:
         #     print(f"Error: {e}")
