@@ -77,6 +77,13 @@ def build_dataset(cfg):
                 split_json_path = data_info.split_json_path
             train_set = _CONGDataset(data_dir, mode='train', split_json_path=split_json_path)
             test_set = _CONGDataset(data_dir, mode='valid', split_json_path=split_json_path)
+        elif dataset_name == "CONGDiff":
+            split_json_path = None
+            if hasattr(data_info, 'split_json_path'):
+                split_json_path = data_info.split_json_path
+            acronym_data_dir = data_info.acronym_data_dir
+            train_set = _CONGDiffDataset(data_dir, acronym_data_dir=acronym_data_dir, mode='train', split_json_path=split_json_path)
+            test_set = _CONGDiffDataset(data_dir, acronym_data_dir=acronym_data_dir, mode='valid', split_json_path=split_json_path)
         else:
             raise ValueError("The dataset name does not exist!")
         dataset_dict = dict(

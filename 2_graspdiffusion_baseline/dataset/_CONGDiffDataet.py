@@ -17,7 +17,7 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 class AcronymGrasps():
-    def __init__(self, filename):
+    def __init__(self, filename, load_grasps=True):
 
         scale = None
         if filename.endswith(".json"):
@@ -35,11 +35,12 @@ class AcronymGrasps():
         else:
             raise RuntimeError("Unknown file ending:", filename)
 
-        self.grasps, self.success = self.load_grasps(filename)
-        good_idxs = np.argwhere(self.success==1)[:,0]
-        bad_idxs  = np.argwhere(self.success==0)[:,0]
-        self.good_grasps = self.grasps[good_idxs,...]
-        self.bad_grasps  = self.grasps[bad_idxs,...]
+        if load_grasps:
+            self.grasps, self.success = self.load_grasps(filename)
+            good_idxs = np.argwhere(self.success==1)[:,0]
+            bad_idxs  = np.argwhere(self.success==0)[:,0]
+            self.good_grasps = self.grasps[good_idxs,...]
+            self.bad_grasps  = self.grasps[bad_idxs,...]
 
     def load_grasps(self, filename):
         """Load transformations and qualities of grasps from a JSON file from the dataset.
@@ -63,8 +64,8 @@ class AcronymGrasps():
             raise RuntimeError("Unknown file ending:", filename)
         return T, success
 
-    def load_mesh(self):
-        mesh_path_file = os.path.join(get_data_src(), self.mesh_fname)
+    def load_mesh(self, data_dir):
+        mesh_path_file = os.path.join(data_dir, self.mesh_fname)
 
         mesh = trimesh.load(mesh_path_file,  file_type='obj', force='mesh')
 
@@ -76,7 +77,7 @@ class AcronymGrasps():
 
 # CONG dataset for grasp diffusion baseline 训练
 class _CONGDiffDataset(Dataset):
-    def __init__(self, data_dir, acronym_data_dir, mode='train', split_json_path=None, n_pointcloud=2048, n_grasps=80, augmented_rotation=True, center_pcl=True, partial=True):
+    def __init__(self, data_dir, acronym_data_dir, mode='train', split_json_path=None, n_pointcloud=1024, n_grasps=80, augmented_rotation=True, center_pcl=True):
         self.data_dir = data_dir
         self.acronym_data_dir = acronym_data_dir
         self.type = mode
@@ -88,16 +89,19 @@ class _CONGDiffDataset(Dataset):
         self.data_files = self.split[mode]
         self.data_files = [os.path.join(data_dir, 'data', i) for i in self.data_files]
 
-        self.acronym_data_files = glob.glob(os.path.join(acronym_data_dir, '*.h5'))
+        self.acronym_grasp_data_dir = os.path.join(self.acronym_data_dir, 'grasps')
+        self.acronym_sdf_data_dir = os.path.join(self.acronym_data_dir, 'sdf')
+        self.acronym_data_files = glob.glob(os.path.join(self.acronym_grasp_data_dir, '*.h5'))
         self.acronym_data_names = [os.path.basename(i).rsplit('.', maxsplit=1)[0] for i in self.acronym_data_files]
         self.acronym_data_names = [i.rsplit('_', maxsplit=1)[0] for i in self.acronym_data_names]
 
         # params
         self.n_pointcloud = n_pointcloud
+        self.n_occ = n_pointcloud
         self.n_grasps = n_grasps
         self.augmented_rotation = augmented_rotation
         self.center_pcl = center_pcl
-        self.partial = partial
+        # self.partial = partial
 
         # other fixed params
         self.scale = 8.
@@ -112,10 +116,10 @@ class _CONGDiffDataset(Dataset):
         mesh_type = mesh_fname.split('/')[1]
         mesh_name = mesh_fname.split('/')[-1]
         filename  = mesh_name.split('.obj')[0]
-        sdf_file = os.path.join(self.data_dir, 'sdf', mesh_type, filename+'.json')
+        sdf_file = os.path.join(self.acronym_sdf_data_dir, mesh_type, filename+'.json')
 
         with open(sdf_file, 'rb') as handle:
-            sdf_dict = pickle.load(handle)
+            sdf_dict = pkl.load(handle)
 
         loc = sdf_dict['loc']
         scale = sdf_dict['scale']
@@ -125,7 +129,14 @@ class _CONGDiffDataset(Dataset):
         sdf = sdf_dict['sdf'][rix[:self.n_occ]]*scale*mesh_scale
         return xyz, sdf
 
+    def get_mesh_pcl(self, grasp_obj):
+        # for debug
+        mesh = grasp_obj.load_mesh(data_dir=self.acronym_data_dir)
+        return mesh.sample(self.n_pointcloud)
+
     def __getitem__(self, idx):
+        idx = 10
+
         data_file = self.data_files[idx]
 
         data_name = os.path.basename(data_file)
@@ -133,10 +144,24 @@ class _CONGDiffDataset(Dataset):
         acronym_data_file_path = self.acronym_data_files[self.acronym_data_names.index(acronym_data_name)]
 
         pkl_data = pkl.load(open(data_file, 'rb'))
+        grasp_obj = AcronymGrasps(acronym_data_file_path, load_grasps=False)
 
+        obj_sdf_xyz, obj_sdf = self.get_sdf(grasp_obj)
         obj_pc = pkl_data["sampled_pc_{}".format(self.n_pointcloud)]
         grasp_Ts = list(pkl_data["grasps/transformations"])
         grasp_successes = pkl_data["grasps/successes"]
+
+        # # Debug vis
+        # obj_pcl = self.get_mesh_pcl(grasp_obj)  # for debug
+        # from roboutils.vis.viser_grasp import ViserForGrasp
+        # viser = ViserForGrasp()
+        # # viser.vis_grasp_scene(grasp_Ts, pc=obj_pc, max_grasp_num=50)
+        # # viser.add_pcd(obj_pc)
+        # viser.add_pcd(obj_x_sdf)
+        # viser.add_pcd(obj_pcl)
+        # viser.add_pcd(obj_pc, colors=np.array([[255, 0, 0]]*obj_pc.shape[0]))
+        # viser.wait_for_reset()
+
         # @note TODO for partial
         # rendering_pcs = pickle_data["rendering/point_clouds"]
         # rendering_camera_Ts = pickle_data["rendering/camera_poses"]
@@ -158,6 +183,8 @@ class _CONGDiffDataset(Dataset):
         # scale
         mesh_scale = self.scale
         obj_pc = obj_pc * self.scale
+        obj_sdf_xyz = obj_sdf_xyz * self.scale
+        obj_sdf = obj_sdf * self.scale  # sdf 值也要乘以 scale
         grasp_Ts[..., :3, -1] = grasp_Ts[..., :3, -1] * self.scale
 
         mesh_T = np.eye(4)
@@ -165,6 +192,7 @@ class _CONGDiffDataset(Dataset):
             ## translate ##
             mean = np.mean(obj_pc, 0)
             obj_pc -= mean
+            obj_sdf_xyz -= mean
             grasp_Ts[..., :3, -1] = grasp_Ts[..., :3, -1] - mean
             mesh_T[:3, -1] = -mean
 
@@ -174,10 +202,18 @@ class _CONGDiffDataset(Dataset):
             random_R_T = np.eye(4)
             random_R_T[:3, :3] = random_R
             obj_pc = np.einsum('mn,bn->bm', random_R, obj_pc)
+            obj_sdf_xyz = np.einsum('mn,bn->bm', random_R, obj_sdf_xyz)
             grasp_Ts = np.einsum('mn,bnk->bmk', random_R_T, grasp_Ts)   # 应用随机的旋转
             mesh_T[:3, :3] = random_R
+        
+        res = {'visual_context': torch.from_numpy(obj_pc).float(),
+                'x_sdf': torch.from_numpy(obj_sdf_xyz).float(),
+                'x_ene_pos': torch.from_numpy(grasp_Ts).float(),
+                'scale': torch.Tensor([self.scale]).float(),
+                'mesh_T': torch.from_numpy(mesh_T).float(),
+            }
 
-        return [data_file], obj_pc, grasp_Ts, mesh_T, mesh_scale
+        return res, {'sdf': torch.from_numpy(obj_sdf).float()}
     
     def preprocess_infer_data(self, obj_pc):
         obj_pc_num = obj_pc.shape[0]
@@ -193,16 +229,31 @@ class _CONGDiffDataset(Dataset):
 
 
 if __name__ == "__main__":
-    data_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/data/grasp_CONG_graspldm"
-    dataset = _CONGDataset(data_dir=data_dir, mode="train")
+    data_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm"
+    acronym_data_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_Acronym"
+    dataset = _CONGDiffDataset(data_dir=data_dir, acronym_data_dir=acronym_data_dir, mode="train")
 
+    from roboutils.vis.viser_grasp import ViserForGrasp
+    viser = ViserForGrasp()
     for data in dataset:
-        file_path, obj_pc, grasp_Ts = data
+        (model_input, gt) = data
+
+        obj_pc = model_input['visual_context'].numpy()
+        grasp_Ts = model_input['x_ene_pos'].numpy()
+        obj_sdf = gt['sdf'].numpy()
+        obj_sdf_xyz = model_input['x_sdf'].numpy()
+
+        scale = model_input['scale'].numpy()[0]
+        mesh_T = model_input['mesh_T'].numpy()
+
+        obj_pc = obj_pc / scale
+        obj_sdf_xyz = obj_sdf_xyz / scale
+        obj_sdf = obj_sdf / scale
+        grasp_Ts[..., :3, -1] = grasp_Ts[..., :3, -1] / scale
 
         # vis debug
-        from roboutils.vis.viser_grasp import ViserForGrasp
-        viser = ViserForGrasp()
-        viser.vis_grasp_scene(grasp_Ts, pc=obj_pc, max_grasp_num=50)
+        viser.vis_grasp_scene(grasp_Ts, pc=obj_pc, max_grasp_num=80)
+        viser.add_pcd(obj_sdf_xyz, colors=np.array([[255, 0, 0]]*obj_sdf_xyz.shape[0]))
         viser.wait_for_reset()
         pass
     

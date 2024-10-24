@@ -1,0 +1,10 @@
+mesh_to_sdf.egg-info/
+**/__pycache__/**
+
+build/**
+dist/**
+test/
+
+*.obj
+*.stl
+*.ply
