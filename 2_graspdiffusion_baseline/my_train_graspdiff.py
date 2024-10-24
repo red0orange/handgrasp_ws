@@ -14,6 +14,25 @@ from models.graspdiff.losses import get_loss_fn
 from models.graspdiff.learning_rate import get_lr_scheduler
 from dataset._CONGDiffDataet import _CONGDiffDataset
 
+
+# Argument Parser
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train a model")
+    parser.add_argument("--config", help="train config file path")
+    args = parser.parse_args()
+    return args
+
+
+def save_git_info(commit_info_file, uncommitted_changes_file):
+    bash_script = opj(os.path.dirname(os.path.abspath(__file__)), "scripts/record_git_info.sh")
+    result = subprocess.run([bash_script, commit_info_file, uncommitted_changes_file], capture_output=True, text=True)
+    if result.returncode == 0:
+        print("Git information saved successfully.")
+    else:
+        print("Error occurred while saving git information.")
+        print(result.stderr)
+
+
 if __name__ == '__main__':
     args = parse_args()
     config_file_path = args.config
@@ -66,9 +85,9 @@ if __name__ == '__main__':
     acronym_data_dir = cfg.data.acronym_data_dir
 
     dataset_dict = build_dataset(cfg)
-    dataloader_dict = build_loader(cfg, dataset_dict)
+    loader_dict = build_loader(cfg, dataset_dict)
     optim_dict = dict(
-        optimizer=optimizer,
+        optimizer=[optimizer],
         scheduler=lr_schedules,
     )
     training = dict(
@@ -76,7 +95,7 @@ if __name__ == '__main__':
         dataset_dict=dataset_dict,
         loader_dict=loader_dict,
         optim_dict=optim_dict,
-        loss_fn=loss_fn,
+        loss_fn=loss_fn.loss_fn,
     )
 
     # training loop

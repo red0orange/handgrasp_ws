@@ -54,5 +54,17 @@
             ],
             "justMyCode": false
         },
+        {
+            "name": "my train grasp diffusion",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "my_train_graspdiff.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--config", 
+                "${workspaceFolder}/config/my_graspdiff.py",
+            ],
+            "justMyCode": false
+        },
     ]
 }

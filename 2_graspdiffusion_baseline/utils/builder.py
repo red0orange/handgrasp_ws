@@ -64,11 +64,11 @@ def build_dataset(cfg):
         data_info = cfg.data
         data_dir = data_info.data_dir
         dataset_name = data_info.type
-        fix_local_geo = cfg.hyper_params.fix_local_geo
         if dataset_name == '3DAP':
             train_set = _3DAPDataset(data_dir, mode='train')
             test_set = _3DAPDataset(data_dir, mode='test')
         elif dataset_name == "Acronym":
+            fix_local_geo = cfg.hyper_params.fix_local_geo
             train_set = _AcronymDataset(data_dir, mode='train', fix_local_geo=fix_local_geo, use_loca_geo_cache=True)
             test_set = _AcronymDataset(data_dir, mode='test', fix_local_geo=fix_local_geo, use_loca_geo_cache=True)
         elif dataset_name == "CONG":

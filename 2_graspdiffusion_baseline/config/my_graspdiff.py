@@ -43,17 +43,16 @@ hyper_params = dict(
 #     sigma=0.2,
 # )
 
-# training_cfg = dict(
-#     model=model,
-#     batch_size=32,
-#     num_workers=16,
-#     epoch=300,
-#     gpu='0',
-#     workflow=dict(
-#         train=1,
-#     ),
-#     bn_momentum=PN2_BNMomentum(origin_m=0.1, m_decay=0.5, step=20),
-# )
+training_cfg = dict(
+    # model=model,
+    batch_size=32,
+    num_workers=16,
+    epoch=300,
+    gpu='0',
+    workflow=dict(
+        train=1,
+    ),
+)
 
 data = dict(
     type="CONGDiff",

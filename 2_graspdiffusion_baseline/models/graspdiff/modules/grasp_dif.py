@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 
+from .geometry_utils import SO3
+
 class GaussianFourierProjection(nn.Module):
     """Gaussian random features for encoding time steps."""
     def __init__(self, embed_dim, scale=30.):
@@ -69,8 +71,6 @@ class GraspDiffusionFields(nn.Module):
         self.vision_encoder = vision_encoder
         ## vision latent code
         self.z = None
-        ## prior grasp latent code
-        self.prior_grasp_z = None
         ## Geometry Encoder. Map H to points ##
         self.geometry_encoder = geometry_encoder
         ## Feature Encoder. Get SDF and latent features ##
@@ -81,27 +81,12 @@ class GraspDiffusionFields(nn.Module):
     def set_latent(self, O, batch = 1):
         self.z = self.vision_encoder(O.squeeze(1))
         self.z = self.z.unsqueeze(1).repeat(1, batch, 1).reshape(-1, self.z.shape[-1])
-        pass
-    
-    def set_prior_H_latent(self, H, vis_batch=None):
-        self.prior_grasp_z = self.geometry_encoder(H, self.points)
-        if vis_batch is None:
-            self.prior_grasp_z = self.prior_grasp_z.repeat(1, 1, 10)
-        else:
-            random_idx = np.random.randint(0, self.prior_grasp_z.shape[1])
-            self.prior_grasp_z = self.prior_grasp_z[:, random_idx, ...]
-            self.prior_grasp_z = self.prior_grasp_z.repeat(vis_batch, 1, 10)
-        pass
 
     def forward(self, H, k):
         ## 1. Represent H with points
         p = self.geometry_encoder(H, self.points)
         k_ext = k.unsqueeze(1).repeat(1, p.shape[1])
         z_ext = self.z.unsqueeze(1).repeat(1, p.shape[1], 1)
-        
-        # cat condition z
-        z_ext = torch.cat((z_ext, self.prior_grasp_z), dim=-1)
-        
         ## 2. Get Features
         psi = self.feature_encoder(p, k_ext, z_ext)
         ## 3. Flat and get energy
@@ -111,11 +96,5 @@ class GraspDiffusionFields(nn.Module):
 
     def compute_sdf(self, x):
         k = torch.rand_like(x[..., 0])
-
-        empty_H_prior = torch.zeros([self.z.shape[0], 30])
-        empty_H_prior = empty_H_prior.to(self.z.device)
-        z_ext = torch.cat((self.z, empty_H_prior), dim=-1)
-        # z_ext = self.z
-
-        psi = self.feature_encoder(x, k, z_ext)
+        psi = self.feature_encoder(x, k, self.z)
         return psi[..., 0]

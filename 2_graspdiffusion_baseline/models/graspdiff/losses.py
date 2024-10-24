@@ -1,5 +1,8 @@
+import numpy as np
 import torch
 import torch.nn as nn
+
+from .modules.geometry_utils import SO3_R3
 
 
 class SDFLoss():
@@ -49,12 +52,9 @@ class ProjectedSE3DenoisingLoss():
 
         ## Set input ##
         H = model_input['x_ene_pos']
-        H_prior = model_input['x_ene_pos_prior']
         c = model_input['visual_context']
         model.set_latent(c, batch=H.shape[1])
         H = H.reshape(-1, 4, 4)
-        H_prior = H_prior.reshape(-1, 4, 4)
-        model.set_prior_H_latent(H_prior)
 
         ## 1. H to vector ##
         H_th = SO3_R3(R=H[...,:3, :3], t=H[...,:3, -1])
@@ -106,7 +106,7 @@ class LossDictionary():
 
 def get_loss_fn():
     loss_dict = {
-       'denoise': ProjectedSE3DenoisingLoss(),
-       'sdf': SDFLoss(),
+       'denoise': ProjectedSE3DenoisingLoss().loss_fn,
+       'sdf': SDFLoss().loss_fn,
     }
     return LossDictionary(loss_dict)

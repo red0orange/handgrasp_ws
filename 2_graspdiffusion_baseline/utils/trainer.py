@@ -146,6 +146,7 @@ class GraspDiffTrainer(MyTrainer):
         self.loss_fn = running["loss_fn"]
 
         self.epoch = 0
+        self.device = torch.device('cuda')
         pass
 
     def train(self):
@@ -163,10 +164,10 @@ class GraspDiffTrainer(MyTrainer):
             model_input = data[0]
             gt = data[1]
 
-            model_input = dict_to_device(model_input, device)
-            gt = dict_to_device(gt, device)
+            model_input = dict_to_device(model_input, self.device)
+            gt = dict_to_device(gt, self.device)
 
-            losses, iter_info = loss_fn(model, model_input, gt)
+            losses, iter_info = self.loss_fn(self.model, model_input, gt)
             train_loss = 0.
             for loss_name, loss in losses.items():
                 single_loss = loss.mean()

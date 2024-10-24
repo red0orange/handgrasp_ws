@@ -61,9 +61,7 @@ class TimeLatentFeatureEncoder(nn.Module):
         def make_sequence():
             return []
 
-        # dims = [latent_size + enc_dim + in_dim] + dims + [out_dim]
-        # @note TODO 这样可能有 bug
-        dims = [30 + latent_size + enc_dim + in_dim] + dims + [out_dim]
+        dims = [latent_size + enc_dim + in_dim] + dims + [out_dim]
 
         self.num_layers = len(dims)
         self.norm_layers = norm_layers
