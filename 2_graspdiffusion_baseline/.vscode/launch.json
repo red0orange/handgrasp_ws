@@ -14,7 +14,7 @@
                 // "./data/grasp_CONG_graspldm/cong_isaacgym_eval_data.npy"
             ],
             "env": {
-                "CUDA_VISIBLE_DEVICES": "1"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "justMyCode": false
         },

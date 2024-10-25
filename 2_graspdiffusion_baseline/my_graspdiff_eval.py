@@ -21,7 +21,7 @@ from roboutils.vis.viser_grasp import ViserForGrasp
 
 
 if __name__ == '__main__':
-    work_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/log/epoch_31_20241024-211612_grasp_diffusion_baseline copy"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241024-211612_grasp_diffusion_baseline"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         obj_sdf_xyz = model_input['x_sdf']
 
         obj_pc = obj_pc.to(device)
-        obj_pc = obj_pc[0][None, ...]
+        obj_pc = obj_pc[1][None, ...]
         model.set_latent(obj_pc, batch=grasp_per_obj)
         sample_grasp_Ts = generator.sample()
 

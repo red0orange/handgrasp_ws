@@ -135,8 +135,6 @@ class _CONGDiffDataset(Dataset):
         return mesh.sample(self.n_pointcloud)
 
     def __getitem__(self, idx):
-        idx = 10
-
         data_file = self.data_files[idx]
 
         data_name = os.path.basename(data_file)
