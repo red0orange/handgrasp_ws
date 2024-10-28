@@ -118,6 +118,9 @@ class _CONGDiffDataset(Dataset):
         filename  = mesh_name.split('.obj')[0]
         sdf_file = os.path.join(self.acronym_sdf_data_dir, mesh_type, filename+'.json')
 
+        if not os.path.exists(sdf_file):
+            return None, None
+
         with open(sdf_file, 'rb') as handle:
             sdf_dict = pkl.load(handle)
 
@@ -148,6 +151,11 @@ class _CONGDiffDataset(Dataset):
         obj_pc = pkl_data["sampled_pc_{}".format(self.n_pointcloud)]
         grasp_Ts = list(pkl_data["grasps/transformations"])
         grasp_successes = pkl_data["grasps/successes"]
+
+        if obj_sdf_xyz is None:
+            # print("No SDF data for", acronym_data_name)
+            return self.__getitem__(np.random.randint(len(self)))
+            # return None, None
 
         # # Debug vis
         # obj_pcl = self.get_mesh_pcl(grasp_obj)  # for debug
@@ -227,32 +235,40 @@ class _CONGDiffDataset(Dataset):
 
 
 if __name__ == "__main__":
-    data_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm"
-    acronym_data_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_Acronym"
-    dataset = _CONGDiffDataset(data_dir=data_dir, acronym_data_dir=acronym_data_dir, mode="train")
+    from tqdm import tqdm
+
+    data_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm"
+    acronym_data_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_Acronym"
+    split_json_path = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/selected_valid_split.json"
+    dataset = _CONGDiffDataset(data_dir=data_dir, acronym_data_dir=acronym_data_dir, mode="train", split_json_path=split_json_path)
 
     from roboutils.vis.viser_grasp import ViserForGrasp
     viser = ViserForGrasp()
-    for data in dataset:
+    invalid_count = 0
+    for data in tqdm(dataset, total=len(dataset)):
         (model_input, gt) = data
+        if model_input is None:
+            invalid_count += 1
 
-        obj_pc = model_input['visual_context'].numpy()
-        grasp_Ts = model_input['x_ene_pos'].numpy()
-        obj_sdf = gt['sdf'].numpy()
-        obj_sdf_xyz = model_input['x_sdf'].numpy()
+        # obj_pc = model_input['visual_context'].numpy()
+        # grasp_Ts = model_input['x_ene_pos'].numpy()
+        # obj_sdf = gt['sdf'].numpy()
+        # obj_sdf_xyz = model_input['x_sdf'].numpy()
 
-        scale = model_input['scale'].numpy()[0]
-        mesh_T = model_input['mesh_T'].numpy()
+        # scale = model_input['scale'].numpy()[0]
+        # mesh_T = model_input['mesh_T'].numpy()
 
-        obj_pc = obj_pc / scale
-        obj_sdf_xyz = obj_sdf_xyz / scale
-        obj_sdf = obj_sdf / scale
-        grasp_Ts[..., :3, -1] = grasp_Ts[..., :3, -1] / scale
+        # obj_pc = obj_pc / scale
+        # obj_sdf_xyz = obj_sdf_xyz / scale
+        # obj_sdf = obj_sdf / scale
+        # grasp_Ts[..., :3, -1] = grasp_Ts[..., :3, -1] / scale
 
-        # vis debug
-        viser.vis_grasp_scene(grasp_Ts, pc=obj_pc, max_grasp_num=80)
-        viser.add_pcd(obj_sdf_xyz, colors=np.array([[255, 0, 0]]*obj_sdf_xyz.shape[0]))
-        viser.wait_for_reset()
-        pass
+        # # vis debug
+        # viser.vis_grasp_scene(grasp_Ts, pc=obj_pc, max_grasp_num=80)
+        # viser.add_pcd(obj_sdf_xyz, colors=np.array([[255, 0, 0]]*obj_sdf_xyz.shape[0]))
+        # viser.wait_for_reset()
+        # pass
+
+    print("Invalid count: {}/{}".format(invalid_count, len(dataset)))
     
     pass
