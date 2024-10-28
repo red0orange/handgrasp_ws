@@ -58,5 +58,5 @@ data = dict(
     type="CONGDiff",
     data_dir="./data/grasp_CONG_graspldm",
     acronym_data_dir="./data/grasp_Acronym",
-    split_json_path="/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/selected_valid_split.json",
+    split_json_path="./data/grasp_Acronym/selected_valid_split.json",
 )
