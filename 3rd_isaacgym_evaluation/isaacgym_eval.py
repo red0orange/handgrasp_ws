@@ -114,7 +114,7 @@ class IsaacGymGraspEva(object):
         if True:
             n_envs = min(len(grasp_Ts), 500)
             grasp_evaluator = AnyGraspSuccessEvaluator(obj_mesh_path=tmp_obj_mesh_path, rotations=None, scales=scales, 
-                                                    n_envs=n_envs, viewer=True, device=self.device, enable_rel_trafo=False)
+                                                    n_envs=n_envs, viewer=False, device=self.device, enable_rel_trafo=False)
             success_cases, success_flags = grasp_evaluator.eval_set_of_grasps(torch.tensor(grasp_Ts, device=self.device))
         # except Exception as e:
         #     print(f"Error: {e}")

@@ -185,6 +185,21 @@ class Grasp_AnnealedLD():
         else:
             return Ht
 
+    def batch_sample(self, batch, sample_num):
+        ori_batch = batch
+        batch = batch*sample_num
+
+        ## 1.Sample initial SE(3) ##
+        H0 = SO3_R3().sample(batch).to(self.device, torch.float32)
+
+        ## 2.Langevin Dynamics (We evolve the data as [R3, SO(3)] pose)##
+        Ht = H0
+        for t in range(self.T):
+            Ht = self._step(Ht, t, noise_off=self.deterministic)
+        for t in range(self.T_fit):
+            Ht = self._step(Ht, self.T, noise_off=True)
+
+        return Ht.reshape(ori_batch, sample_num, 4, 4)
 
 
 if __name__ == '__main__':

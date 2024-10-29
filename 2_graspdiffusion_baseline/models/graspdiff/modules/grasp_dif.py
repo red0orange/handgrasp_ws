@@ -79,6 +79,10 @@ class GraspDiffusionFields(nn.Module):
         self.decoder = decoder
 
     def set_latent(self, O, batch = 1):
+        # 销毁原来的 z
+        if self.z is not None:
+            del self.z
+
         self.z = self.vision_encoder(O.squeeze(1))
         self.z = self.z.unsqueeze(1).repeat(1, batch, 1).reshape(-1, self.z.shape[-1])
 

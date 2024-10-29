@@ -44,9 +44,10 @@ def generate_mesh_sdf(mesh, absolute=True, normalize=False, n_points=200000):
 
 if __name__ == '__main__':
     import sys
-    start_idx, end_idx = int(sys.argv[1]), int(sys.argv[2])
-    # start_idx, end_idx = 5666, 6000
-    print("start-end: ", start_idx, end_idx)
+    start_idx, end_idx = 7990, 9000
+
+    # start_idx, end_idx = int(sys.argv[1]), int(sys.argv[2])
+    # print("start-end: ", start_idx, end_idx)
 
     data_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_Acronym"
     mesh_dir = os.path.join(data_dir, "meshes")

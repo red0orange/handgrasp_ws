@@ -153,7 +153,7 @@ class _CONGDiffDataset(Dataset):
         grasp_successes = pkl_data["grasps/successes"]
 
         if obj_sdf_xyz is None:
-            # print("No SDF data for", acronym_data_name)
+            print("No SDF data for", acronym_data_name)
             return self.__getitem__(np.random.randint(len(self)))
             # return None, None
 
@@ -217,6 +217,7 @@ class _CONGDiffDataset(Dataset):
                 'x_ene_pos': torch.from_numpy(grasp_Ts).float(),
                 'scale': torch.Tensor([self.scale]).float(),
                 'mesh_T': torch.from_numpy(mesh_T).float(),
+                'filename': data_file,
             }
 
         return res, {'sdf': torch.from_numpy(obj_sdf).float()}
