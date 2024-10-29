@@ -47,8 +47,9 @@ training_cfg = dict(
     # model=model,
     batch_size=32,
     num_workers=16,
-    epoch=300,
+    epoch=500,
     gpu='0',
+    feature_backbone='DiT',
     workflow=dict(
         train=1,
     ),
@@ -58,5 +59,5 @@ data = dict(
     type="CONGDiff",
     data_dir="./data/grasp_CONG_graspldm",
     acronym_data_dir="./data/grasp_Acronym",
-    split_json_path="/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/selected_valid_split.json",
+    split_json_path="./data/grasp_CONG_graspldm/selected_valid_split.json",
 )

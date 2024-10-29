@@ -7,6 +7,7 @@ from scipy.spatial import KDTree
 from os.path import join as opj
 
 import torch
+from torch.backends.cuda import sdp_kernel
 from pytorch3d.ops import knn_points
 
 from utils import *
@@ -144,6 +145,7 @@ class GraspDiffTrainer(MyTrainer):
         self.optimizer = self.optimizer_dict.get("optimizer", None)
         self.scheduler = self.optimizer_dict.get("scheduler", None)
         self.loss_fn = running["loss_fn"]
+        self.feature_backbone = self.cfg.training_cfg.feature_backbone
 
         self.epoch = 0
         self.device = torch.device('cuda')
@@ -167,17 +169,32 @@ class GraspDiffTrainer(MyTrainer):
             model_input = dict_to_device(model_input, self.device)
             gt = dict_to_device(gt, self.device)
 
-            losses, iter_info = self.loss_fn(self.model, model_input, gt)
-            train_loss = 0.
-            for loss_name, loss in losses.items():
-                single_loss = loss.mean()
-                train_loss += single_loss
+            if self.feature_backbone == "DiT":
+                # 参考 https://github.com/pytorch/pytorch/issues/117974
+                with sdp_kernel(enable_math=True, enable_flash=False, enable_mem_efficient=False):
+                    losses, iter_info = self.loss_fn(self.model, model_input, gt)
+                    train_loss = 0.
+                    for loss_name, loss in losses.items():
+                        single_loss = loss.mean()
+                        train_loss += single_loss
 
-            # Optimize the model
-            for optim in self.optimizer:
-                optim.zero_grad()
+                    # Optimize the model
+                    for optim in self.optimizer:
+                        optim.zero_grad()
 
-            train_loss.backward()
+                    train_loss.backward()
+            else:
+                losses, iter_info = self.loss_fn(self.model, model_input, gt)
+                train_loss = 0.
+                for loss_name, loss in losses.items():
+                    single_loss = loss.mean()
+                    train_loss += single_loss
+
+                # Optimize the model
+                for optim in self.optimizer:
+                    optim.zero_grad()
+
+                train_loss.backward()
 
             for optim in self.optimizer:
                 optim.step()
