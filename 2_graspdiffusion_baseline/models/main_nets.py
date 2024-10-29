@@ -627,7 +627,7 @@ class ScoreBasedGraspingDiffusion(nn.Module):
         else:
             raise NotImplementedError()
     
-    def batch_detect_and_sample(self, xyz, n_sample, guide_w, data_scale=1.0):
+    def batch_detect_and_sample(self, xyz, n_sample, guide_w, data_scale=1.0, fix_initial=False):
         """_summary_
         Detect affordance for one point cloud and sample [n_sample] poses that support the 'text' affordance task,
         following the guidance sampling scheme described in 'Classifier-Free Diffusion Guidance'.
@@ -637,7 +637,11 @@ class ScoreBasedGraspingDiffusion(nn.Module):
         elif self.training_method == "score_based":
             batch_size = xyz.shape[0]
             t = torch.ones([batch_size * n_sample], device=self.device)
-            g_i = torch.randn(batch_size * n_sample, (self.action_dim)).to(self.device) * self.marginal_prob_std_fn(t)[..., None]
+            if fix_initial:
+                g_i = torch.randn(1, (self.action_dim)).to(self.device) * self.marginal_prob_std_fn(t)[..., None]
+                g_i = g_i.repeat(batch_size * n_sample, 1)
+            else:
+                g_i = torch.randn(batch_size * n_sample, (self.action_dim)).to(self.device) * self.marginal_prob_std_fn(t)[..., None]
             time_steps = torch.linspace(1., self.eps, self.num_steps, device=self.device)
             step_size = time_steps[0] - time_steps[1]
             g = g_i

@@ -70,7 +70,7 @@ class OakinkGraspDataset(torch.utils.data.Dataset):
     
 
 def eval_for_isaacgym(work_dir):
-    save_name = "eval_oakink_only_s"
+    save_name = "eval_oakink_only_s_fix_initial"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     
@@ -154,7 +154,7 @@ def eval_for_isaacgym(work_dir):
         # input_refine_palm_gs = input_refine_palm_gs.reshape(-1, input_refine_palm_gs.shape[-1])
 
         # @note 无限制采样
-        pred_gs = model.batch_detect_and_sample(xyz, sample_num, guide_w=GUIDE_W, data_scale=dataset.scale)
+        pred_gs = model.batch_detect_and_sample(xyz, sample_num, guide_w=GUIDE_W, data_scale=dataset.scale, fix_initial=True)
 
         # # @note 根据约束选择
         # selected_idx = []
@@ -263,7 +263,7 @@ def eval_for_isaacgym(work_dir):
 
 
 if __name__ == "__main__":
-    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241019-115052_detectiondiffusion"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
 
     # eval_for_vis(work_dir)
     eval_for_isaacgym(work_dir)

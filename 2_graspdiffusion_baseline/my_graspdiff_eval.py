@@ -23,7 +23,7 @@ from roboutils.vis.viser_grasp import ViserForGrasp
 
 if __name__ == '__main__':
     save_name = "graspdiff_eval_cong"
-    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_599_20241026-145515_grasp_diffusion_baseline"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241028-213253_grasp_diffusion_baseline"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
 
