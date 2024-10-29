@@ -15,6 +15,7 @@ from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 if __name__ == "__main__":
+    save_name = "eval_cong_fix_initial"
     work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
@@ -51,7 +52,7 @@ if __name__ == "__main__":
         filename = filename[0]
 
         xyz = xyz.float().cuda()
-        pred = model.batch_detect_and_sample(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale)
+        pred = model.batch_detect_and_sample(xyz, grasp_per_obj, guide_w=GUIDE_W, data_scale=dataset.scale, fix_initial=True)
         xyz = xyz.cpu().numpy()
 
         batch_size = pred.shape[0]
@@ -89,11 +90,11 @@ if __name__ == "__main__":
                 'mesh_T': batch_i_mesh_T,
             }
             results.append(data_dict)
-    with open(os.path.join(work_dir, 'eval_results.pkl'), 'wb') as f:
+    with open(os.path.join(work_dir, '{}.pkl'.format(save_name)), 'wb') as f:
         pickle.dump(results, f)
     # exit()
     
-    results = pickle.load(open(os.path.join(work_dir, 'eval_results.pkl'), 'rb'))
+    results = pickle.load(open(os.path.join(work_dir, '{}.pkl'.format(save_name)), 'rb'))
     
     # 将结果转换为 IsaacGym 格式
     proj_dir = os.path.dirname(os.path.abspath(__file__))
@@ -123,4 +124,4 @@ if __name__ == "__main__":
         # viser_for_grasp.vis_grasp_scene(grasp_Ts, mesh=mesh, pc=obj_pc, max_grasp_num=50)
         # viser_for_grasp.wait_for_reset()
 
-    np.save(os.path.join(work_dir, 'isaacgym_eval_results.npy'), isaacgym_eval_data_dict)
+    np.save(os.path.join(work_dir, 'isaacgym_{}.npy'.format(save_name)), isaacgym_eval_data_dict)

@@ -58,5 +58,5 @@ training_cfg = dict(
 data = dict(
     type="CONG",
     data_dir="./data/grasp_CONG_graspldm",
-    split_json_path="/home/huangdehao/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_CONG_graspldm/selected_valid_split.json"
+    split_json_path="./data/grasp_CONG_graspldm/selected_valid_split.json"
 )

@@ -638,7 +638,7 @@ class ScoreBasedGraspingDiffusion(nn.Module):
             batch_size = xyz.shape[0]
             t = torch.ones([batch_size * n_sample], device=self.device)
             if fix_initial:
-                g_i = torch.randn(1, (self.action_dim)).to(self.device) * self.marginal_prob_std_fn(t)[..., None]
+                g_i = torch.randn(1, (self.action_dim)).to(self.device)
                 g_i = g_i.repeat(batch_size * n_sample, 1)
             else:
                 g_i = torch.randn(batch_size * n_sample, (self.action_dim)).to(self.device) * self.marginal_prob_std_fn(t)[..., None]

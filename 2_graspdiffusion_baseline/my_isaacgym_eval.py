@@ -16,8 +16,8 @@ if __name__ == '__main__':
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion/oakink_isaacgym_eval_results.npy"
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241019-115052_detectiondiffusion/eval_oakink_only_s_isaacgym.npy"
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_599_20241026-145515_grasp_diffusion_baseline/graspdiff_eval_cong_isaacgym.npy"
-    test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241028-213253_grasp_diffusion_baseline/graspdiff_eval_cong_isaacgym.npy"
-    save_name = "eval_cong_results"
+    test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion/isaacgym_eval_cong_fix_initial.npy"
+    save_name = "eval_cong_fix_initial_results"
     # save_name = "eval_oakink_rdt_only_s_isaacgym_eval_results"
     # save_name = "tmp"
     evaluator = IsaacGymGraspEva(test_data_path, cache_dir, n_envs=10)
