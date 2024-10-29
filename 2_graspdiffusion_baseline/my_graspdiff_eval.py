@@ -23,13 +23,14 @@ from roboutils.vis.viser_grasp import ViserForGrasp
 
 if __name__ == '__main__':
     save_name = "graspdiff_eval_cong"
-    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241028-213253_grasp_diffusion_baseline"
+    work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20241029-103352_grasp_diffusion_baseline"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
 
     cfg = Config.fromfile(config_file_path)
     os.environ["CUDA_VISIBLE_DEVICES"] = cfg.training_cfg.gpu
-    model = load_graspdiff()
+    feature_backbone = cfg.training_cfg.feature_backbone
+    model = load_graspdiff(feature_backbone=feature_backbone)
     dataset = build_dataset(cfg)['test_set']
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False, num_workers=8)
 
