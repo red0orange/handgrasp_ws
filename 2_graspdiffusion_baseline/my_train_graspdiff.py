@@ -60,7 +60,8 @@ if __name__ == '__main__':
 
     print("Training from scratch!")
 
-    model = load_graspdiff()
+    feature_backbone = cfg.training_cfg.feature_backbone
+    model = load_graspdiff(feature_backbone=feature_backbone)
     loss_fn = get_loss_fn()
     lr_schedules = get_lr_scheduler()
 

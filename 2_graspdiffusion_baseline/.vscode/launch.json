@@ -67,6 +67,9 @@
                 "--config", 
                 "${workspaceFolder}/config/my_graspdiff.py",
             ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
             "justMyCode": false
         },
     ]
