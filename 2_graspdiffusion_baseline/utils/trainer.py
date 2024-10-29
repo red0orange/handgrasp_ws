@@ -166,6 +166,7 @@ class GraspDiffTrainer(MyTrainer):
             model_input = data[0]
             gt = data[1]
 
+            del model_input["filename"]
             model_input = dict_to_device(model_input, self.device)
             gt = dict_to_device(gt, self.device)
 

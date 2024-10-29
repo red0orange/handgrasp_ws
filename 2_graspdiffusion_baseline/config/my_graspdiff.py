@@ -49,7 +49,8 @@ training_cfg = dict(
     num_workers=16,
     epoch=500,
     gpu='0',
-    feature_backbone='DiT',
+    # feature_backbone='DiT',
+    feature_backbone='default',
     workflow=dict(
         train=1,
     ),
