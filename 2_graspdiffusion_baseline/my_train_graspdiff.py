@@ -63,18 +63,18 @@ if __name__ == '__main__':
     feature_backbone = cfg.training_cfg.feature_backbone
     model = load_graspdiff(feature_backbone=feature_backbone)
 
-    # # @note 统计模型参数量、计算量
-    # from thop import profile
-    # device = torch.device('cuda')
-    # points_input = torch.randn(1, 1024, 3).to(device)
-    # H_input = torch.randn(40, 4, 4).to(device)
-    # t_input = torch.randn(40).to(device)
+    # @note 统计模型参数量、计算量
+    from thop import profile
+    device = torch.device('cuda')
+    points_input = torch.randn(1, 1024, 3).to(device)
+    H_input = torch.randn(40, 4, 4).to(device)
+    t_input = torch.randn(40).to(device)
 
-    # model.set_latent(points_input, batch=40)
-    # flops, params = profile(model, inputs=(H_input, t_input))
-    # print("FLOPs=", str(flops/1e9) +'{}'.format("G"))
-    # print("Params=", str(params/1e6)+'{}'.format("M"))
-    # exit()
+    model.set_latent(points_input, batch=40)
+    flops, params = profile(model, inputs=(H_input, t_input))
+    print("FLOPs=", str(flops/1e9) +'{}'.format("G"))
+    print("Params=", str(params/1e6)+'{}'.format("M"))
+    exit()
 
     loss_fn = get_loss_fn()
     lr_schedules = get_lr_scheduler()

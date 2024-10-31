@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import os, os.path as osp
 
 import theseus as th
@@ -228,10 +229,10 @@ class GraspRefineScoreNet(nn.Module):
         g_i_translation = H_i[:, :3, 3]
 
         g_rotation_matrix = H[:, :3, :3]
-        g_T = torch.eye(4, device=g.device)[None, :, :].repeat(g.shape[0], 1, 1)
+        g_T = torch.eye(4, device=H.device)[None, :, :].repeat(H.shape[0], 1, 1)
         g_T[:, :3, :3] = g_rotation_matrix
         g_T[:, :3, 3] = g_translation
-        gripper_depth_T = torch.eye(4, device=g.device)
+        gripper_depth_T = torch.eye(4, device=H.device)
         gripper_depth_T[2, 3] = 0.08 * 8.0  # @note 注意，考虑上 dataset scale 的计算
         g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
         g_translation = g_T[:, :3, 3]
@@ -259,10 +260,10 @@ class GraspRefineScoreNet(nn.Module):
         g_i_translation = H_i[:, :3, 3]
 
         g_rotation_matrix = H[:, :3, :3]
-        g_T = torch.eye(4, device=g.device)[None, :, :].repeat(g.shape[0], 1, 1)
+        g_T = torch.eye(4, device=H.device)[None, :, :].repeat(H.shape[0], 1, 1)
         g_T[:, :3, :3] = g_rotation_matrix
         g_T[:, :3, 3] = g_translation
-        gripper_depth_T = torch.eye(4, device=g.device)
+        gripper_depth_T = torch.eye(4, device=H.device)
         gripper_depth_T[2, 3] = 0.08 * 8.0  # @note 注意，考虑上 dataset scale 的计算
         g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
         g_translation = g_T[:, :3, 3]
@@ -280,7 +281,7 @@ class GraspRefineScoreNet(nn.Module):
         # trans_loss = torch.mean(self.trans_relu_func(torch.norm(g_translation - g_i_translation, dim=1)))
         # rot_loss = self.loss_mse_rot(g_rotation, g_i_rotation)
         trans_loss = self.loss_mse_trans(g_translation, g_i_translation)
-        print(trans_loss)
+        # print(trans_loss)
 
         return self.loss_rot_weight * rot_loss + self.loss_trans_weight * trans_loss
 
@@ -292,7 +293,7 @@ class Constrained_Grasp_AnnealedLD(Grasp_AnnealedLD):
         self.constrained_loss_func = GraspRefineScoreNet(1.0, 4.0)
         pass
 
-    def _step(self, constrained_H, H0, t, noise_off=True):
+    def _step(self, batch, sample_num,constrained_H, H0, t, noise_off=True):
 
         ## Phase
         noise_std = .5
@@ -326,7 +327,10 @@ class Constrained_Grasp_AnnealedLD(Grasp_AnnealedLD):
             phi0_in = phi0.detach().requires_grad_(True)
             H_in = SO3_R3().exp_map(phi0_in).to_matrix()
             e = self.constrained_loss_func(H_in, constrained_H)
+            e *= (batch*(sample_num / 10))
             constrained_d_phi = torch.autograd.grad(e.sum(), phi0_in)[0]
+
+            d_phi = 1.0 * d_phi + 20.0 * constrained_d_phi
 
             ## 3. Compute noise vector ##
             if noise_off:
@@ -353,14 +357,16 @@ class Constrained_Grasp_AnnealedLD(Grasp_AnnealedLD):
 
         ## 1.Sample initial SE(3) ##
         # H0 = SO3_R3().sample(batch).to(self.device, torch.float32)
-        H0 = constrained_H.unsqueeze(1).repeat(1, batch, 1, 1)
+        constrained_H = constrained_H.unsqueeze(1).repeat(1, sample_num, 1, 1)
+        constrained_H = constrained_H.reshape(batch, 4, 4)
+        H0 = constrained_H.clone()
 
         ## 2.Langevin Dynamics (We evolve the data as [R3, SO(3)] pose)##
         Ht = H0
         for t in range(self.T):
-            Ht = self._step(constrained_H, Ht, t, noise_off=self.deterministic)
+            Ht = self._step(ori_batch, sample_num, constrained_H, Ht, t, noise_off=self.deterministic)
         for t in range(self.T_fit):
-            Ht = self._step(constrained_H, Ht, self.T, noise_off=True)
+            Ht = self._step(ori_batch, sample_num, constrained_H, Ht, self.T, noise_off=True)
 
         return Ht.reshape(ori_batch, sample_num, 4, 4)
 

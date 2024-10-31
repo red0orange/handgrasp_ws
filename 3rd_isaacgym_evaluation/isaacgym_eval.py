@@ -152,6 +152,54 @@ class IsaacGymGraspEva(object):
 
         np.save(os.path.join(self.cache_output_dir, self.exp_name + ".npy"), self.data_dict)
         return num_record, success_num_record, success_record
+    
+    def debug_vis(self):
+        for data_id, data in tqdm(self.data_dict.items(), total=len(self.data_dict)):
+            obj_mesh_path = data['mesh_path']
+            mesh_scale = data['mesh_scale']
+            mesh_T = data['mesh_T']
+            grasp_Ts = data['grasp_Ts']
+
+            mesh_md5 = get_md5(obj_mesh_path)
+            tmp_obj_mesh_path = os.path.join(self.cache_obj_dir, mesh_md5+".obj")
+
+            mesh = None
+            # if (not os.path.exists(tmp_obj_mesh_path)) or (not os.path.exists(os.path.join(self.cache_obj_dir, mesh_md5+"_center.npy"))):
+            if True:
+                mesh = o3d.io.read_triangle_mesh(obj_mesh_path)
+                mesh = mesh.scale(mesh_scale, center=[0, 0, 0])
+                mesh.transform(mesh_T)
+
+                mesh_center = mesh.get_center()
+                mesh.translate(-mesh_center)
+                o3d.io.write_triangle_mesh(tmp_obj_mesh_path, mesh)
+                np.save(os.path.join(self.cache_obj_dir, mesh_md5+"_center.npy"), mesh_center)
+            else:
+                mesh_center = np.load(os.path.join(self.cache_obj_dir, mesh_md5+"_center.npy"))
+
+            for i, grasp_T in enumerate(grasp_Ts):
+                grasp_Ts[i][:3, 3] -= mesh_center
+
+            mesh = o3d.io.read_triangle_mesh(tmp_obj_mesh_path)
+            pc = np.array(mesh.vertices)
+
+            # print(f"Grasp num: {len(grasp_Ts)}")
+            # for i in range(len(grasp_Ts)):
+            #     print("current grasp id: ", i)
+            #     grasp_T = grasp_Ts[i]
+
+            #     # @note
+            #     grasp_T = update_pose(grasp_T, translate=[0, 0, 0.08])
+
+            #     self.viser_grasp.vis_grasp_scene(max_grasp_num=1, pc=pc, grasp_Ts=[grasp_T], mesh=mesh)
+            #     break_flag = self.viser_grasp.wait_for_reset()
+            #     if break_flag:
+            #         self.break_flag = True
+            #         break
+
+            self.viser_grasp.vis_grasp_scene(max_grasp_num=40, pc=pc, grasp_Ts=grasp_Ts, mesh=mesh)
+            self.viser_grasp.wait_for_reset()
+
 
 
 class CONGIsaacGymGraspEva(IsaacGymGraspEva):
