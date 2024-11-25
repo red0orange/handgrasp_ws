@@ -350,7 +350,7 @@ class Constrained_Grasp_AnnealedLD(Grasp_AnnealedLD):
 
         return H1
     
-    def constrained_batch_sample(self, batch, sample_num, constrained_H):
+    def constrained_batch_sample(self, batch, sample_num, constrained_H, return_vis_Hs=False):
         # constrained_H shape: [batch, 4, 4]
         ori_batch = batch
         batch = batch*sample_num
@@ -362,11 +362,19 @@ class Constrained_Grasp_AnnealedLD(Grasp_AnnealedLD):
         H0 = constrained_H.clone()
 
         ## 2.Langevin Dynamics (We evolve the data as [R3, SO(3)] pose)##
+        vis_Hs = []
         Ht = H0
         for t in range(self.T):
             Ht = self._step(ori_batch, sample_num, constrained_H, Ht, t, noise_off=self.deterministic)
+            if return_vis_Hs:
+                vis_Hs.append(Ht.clone().reshape(ori_batch, sample_num, 4, 4).detach().cpu().numpy())
         for t in range(self.T_fit):
             Ht = self._step(ori_batch, sample_num, constrained_H, Ht, self.T, noise_off=True)
+            if return_vis_Hs:
+                vis_Hs.append(Ht.clone().reshape(ori_batch, sample_num, 4, 4).detach().cpu().numpy())
+        
+        if return_vis_Hs:
+            return Ht.reshape(ori_batch, sample_num, 4, 4), np.concatenate([vis_H[None,...] for vis_H in vis_Hs], axis=0)
 
         return Ht.reshape(ori_batch, sample_num, 4, 4)
 

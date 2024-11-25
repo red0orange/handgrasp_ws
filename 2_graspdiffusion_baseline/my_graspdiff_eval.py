@@ -1,4 +1,5 @@
 import os
+import time
 from os.path import join as opj
 import pickle
 import sys
@@ -22,7 +23,8 @@ from roboutils.vis.viser_grasp import ViserForGrasp
 
 
 if __name__ == '__main__':
-    save_name = "graspdiff_eval_cong"
+    # save_name = "eval_cong_split_final"
+    save_name = "tmp"
     work_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20241029-190130_grasp_diffusion_baseline"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
@@ -32,7 +34,7 @@ if __name__ == '__main__':
     feature_backbone = cfg.training_cfg.feature_backbone
     model = load_graspdiff(feature_backbone=feature_backbone)
     dataset = build_dataset(cfg)['test_set']
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False, num_workers=8)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=False, num_workers=8)
 
     print("Loading checkpoint....")
     _, exten = os.path.splitext(checkpoint_path)
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     viser_for_grasp = ViserForGrasp()
     model.eval()
     results = []
-    grasp_per_obj = 10
+    grasp_per_obj = 1
     device = "cuda"
 
     # 初始化采样器
@@ -65,9 +67,12 @@ if __name__ == '__main__':
 
         obj_pc = obj_pc.to(device)
         # obj_pc = obj_pc[1][None, ...]
+        start_time = time.time()
         model.set_latent(obj_pc, batch=grasp_per_obj)
         # sample_grasp_Ts = generator.sample()
         sample_grasp_Ts = generator.batch_sample(batch=batch, sample_num=grasp_per_obj)
+        end_time = time.time()
+        print("Sampling time: {:.4f}s".format((end_time - start_time) / (batch)))
 
         for batch_i in range(batch):
             batch_i_mesh_T = mesh_T[batch_i].squeeze().cpu().numpy()

@@ -221,9 +221,12 @@ def transfere_eval_results():
 
 
 def select_my_valid_intances_based_on_valid_results():
-    eval_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/isaacgym_eval_results.npy"
-    eval_result_txt_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/isaacgym_eval_result.txt"
-    save_txt_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/selected_good_instances.txt"
+    # eval_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/isaacgym_eval_results.npy"
+    # eval_result_txt_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/isaacgym_eval_result.txt"
+    # save_txt_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20240926-191802_detectiondiffusion/selected_good_instances.txt"
+    eval_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20241029-190130_grasp_diffusion_baseline/eval_cong_all_valid_isaacgym.npy"
+    eval_result_txt_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20241029-190130_grasp_diffusion_baseline/eval_cong_all_valid_results.txt"
+    save_txt_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20241029-190130_grasp_diffusion_baseline/selected_good_instances.txt"
 
     eval_data = np.load(eval_data_path, allow_pickle=True).item()
     with open(eval_result_txt_path, 'r') as f:
@@ -234,7 +237,13 @@ def select_my_valid_intances_based_on_valid_results():
     success_ratios = [success_cases[i] / all_num[i] for i in range(len(success_cases))]
 
     sorted_success_ids = np.argsort(success_ratios)[::-1]
-    valid_good_ids = sorted_success_ids[:400]
+    startid = 1670
+    valid_good_ids = sorted_success_ids[startid:startid+400]
+
+    selected_success_cases = [success_cases[i] for i in valid_good_ids]
+    selected_all_num = [all_num[i] for i in valid_good_ids]
+    selected_success_ratio = sum(selected_success_cases) / sum(selected_all_num)
+    print("Selected Success Ratio:", selected_success_ratio)
 
     selected_valid_data = [eval_data[i] for i in valid_good_ids]
     selected_valid_mesh_names = [os.path.basename(selected_valid_data[i]['mesh_path']).split(".")[0] for i in range(len(selected_valid_data))]
