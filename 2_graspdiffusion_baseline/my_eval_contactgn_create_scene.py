@@ -14,6 +14,7 @@ from utils import build_dataset
 from roboutils.vis.viser_grasp import ViserForGrasp
 from roboutils.depth_to_pcd import depth2pc
 from roboutils.proj_llm_robot.pose_rep import sevenDof2T, posestamp2T, T2posestamped
+from roboutils.proj_llm_robot.pose_transform import update_pose
 
 
 class OurOakinkTableScene(Scene):
@@ -347,6 +348,9 @@ if __name__ == "__main__":
     # render_partial_pcd = Open3dPartialPCDRenderer()
     # viser_grasp = ViserForGrasp()
     # for data_i, data in tqdm(enumerate(oakink_dataset), total=len(oakink_dataset)):
+    #     if data_i < 160:
+    #         continue
+
     #     data_path, mesh_path, obj_verts, mesh_T, my_palm_T, hand_verts = data
     #     data_path, mesh_path = data_path[0], mesh_path[0]
     #     data_base_name = os.path.basename(data_path)
@@ -382,6 +386,8 @@ if __name__ == "__main__":
     #     pcd = render_data["pcd"]
     #     pixel_to_point_idx = render_data["pixel_to_point_idx"]
     #     point_semantic_mask = render_data["point_semantic_mask"]
+
+    #     render_data["obj_mesh_pose"] = obj_pose
 
     #     # # debug
     #     # cv2.imshow("obj_mask", (semantic_image == object_ids[0]).astype(np.uint8) * 255)
@@ -420,6 +426,7 @@ if __name__ == "__main__":
     save_dir = os.path.join(oakink_data_root, "scene_partial_data")
     os.makedirs(save_dir, exist_ok=True)
     viser_grasp = ViserForGrasp()
+    results = []
     for data_i, data in tqdm(enumerate(oakink_dataset), total=len(oakink_dataset)):
         data_path, mesh_path, obj_verts, mesh_T, my_palm_T, hand_verts = data
         data_path, mesh_path = data_path[0], mesh_path[0]
@@ -427,6 +434,7 @@ if __name__ == "__main__":
 
         data_i_path = os.path.join(save_dir, str(data_i) + ".npy")
         render_data = np.load(data_i_path, allow_pickle=True).item()
+        obj_mesh_pose = render_data["obj_mesh_pose"]
 
         depth_image = render_data["depth_image"]
         object_ids = render_data["semantic_obj_ids"]
@@ -451,12 +459,79 @@ if __name__ == "__main__":
         req.depth = depth_msg
         req.intrinsic = Float64MultiArray(data=camera_K.flatten())
         req.mask = mask_msg
-        reponse = graspnet_client(req)
-        grasp_poses = reponse.grasp_poses
-        grasp_confidences = reponse.grasp_confidences
-        grasp_Ts = [posestamp2T(pose) for pose in grasp_poses]
-        grasp_confidences = np.array(grasp_confidences.data)
+
+        repeat_time = 10
+        best_grasp_Ts = []
+        for i in range(repeat_time):
+            reponse = graspnet_client(req)
+            grasp_poses = reponse.grasp_poses
+            grasp_confidences = reponse.grasp_confidences
+            grasp_Ts = np.array([posestamp2T(pose) for pose in grasp_poses])
+            grasp_confidences = np.array(grasp_confidences.data)
+            grasp_Ts = grasp_Ts[np.argsort(grasp_confidences)[::-1]]
+            if len(grasp_Ts) == 0:
+                continue
+            best_grasp_Ts.append(grasp_Ts[0])
+        best_grasp_Ts = np.array(best_grasp_Ts)
+        grasp_Ts = best_grasp_Ts
+        
+        if len(grasp_Ts) == 0:
+            print("No grasp found!")
+            grasp_Ts = np.array([np.eye(4)] * 10)
+        while len(grasp_Ts) < 10:
+            grasp_Ts = np.concatenate([grasp_Ts, np.array([np.eye(4)] * (10 - len(grasp_Ts)))], axis=0)
+
+        tmp_grasp_Ts = []
+        for grasp_T in grasp_Ts:
+            grasp_T = update_pose(grasp_T, rotate=-np.pi / 2, rotate_axis='x')
+            grasp_T = update_pose(grasp_T, rotate=np.pi / 2, rotate_axis='y')
+            grasp_T = update_pose(grasp_T, translate=[0, 0, -0.08])
+            tmp_grasp_Ts.append(grasp_T)
+        grasp_Ts = tmp_grasp_Ts
 
         world_grasp_Ts = [np.linalg.inv(camera_pose) @ grasp_T for grasp_T in grasp_Ts]
-        viser_grasp.vis_grasp_scene(world_grasp_Ts, pcd, z_direction=False)
-        viser_grasp.wait_for_reset()
+        # # debug
+        # viser_grasp.vis_grasp_scene(world_grasp_Ts, pcd, z_direction=True)
+        # viser_grasp.wait_for_reset()
+
+        # 转换为物体 mesh 坐标系
+        obj_mesh_grasp_Ts = [np.linalg.inv(obj_mesh_pose) @ grasp_T for grasp_T in world_grasp_Ts]
+        # # debug
+        # o3d_obj_mesh = o3d.io.read_triangle_mesh(mesh_path)
+        # viser_grasp.vis_grasp_scene(obj_mesh_grasp_Ts, mesh=o3d_obj_mesh, z_direction=True)
+        # viser_grasp.wait_for_reset()
+
+        data_dict = {
+            'mesh_path': mesh_path,
+            'xyz': pcd,
+            'grasp_Ts': obj_mesh_grasp_Ts[:10],  # 选择前 10 个抓取姿态
+            'mesh_T': np.eye(4),
+        }
+        results.append(data_dict)
+
+    # @note 导出与人手抓取无关的抓取数据评估
+    # 将结果转换为 IsaacGym 格式
+    save_name = "contactgn_oakink_best"
+    isaacgym_eval_data_dict = {}
+    for i, data_dict in tqdm(enumerate(results), total=len(results)):
+        isaacgym_eval_data_dict[i] = {}
+
+        obj_pc = data_dict['xyz']
+        mesh_T = data_dict['mesh_T']
+        mesh_path = data_dict['mesh_path']
+        mesh_scale = 1.0
+
+        isaacgym_eval_data_dict[i]['mesh_path'] = mesh_path
+        isaacgym_eval_data_dict[i]['mesh_scale'] = mesh_scale
+        isaacgym_eval_data_dict[i]['grasp_Ts'] = data_dict['grasp_Ts']
+        isaacgym_eval_data_dict[i]['mesh_T'] = mesh_T
+
+        # # for debug vis
+        # mesh = o3d.io.read_triangle_mesh(mesh_path)
+        # mesh.scale(mesh_scale, center=np.zeros(3))
+        # mesh.transform(mesh_T)
+        # grasp_Ts = data_dict['grasp_Ts']
+        # viser_for_grasp.vis_grasp_scene(grasp_Ts, mesh=mesh, pc=obj_pc, max_grasp_num=50)
+        # viser_for_grasp.wait_for_reset()
+
+    np.save(os.path.join(work_dir, '{}_isaacgym.npy'.format(save_name)), isaacgym_eval_data_dict)
