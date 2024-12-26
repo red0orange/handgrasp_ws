@@ -64,6 +64,10 @@ def build_dataset(cfg):
         data_info = cfg.data
         data_dir = data_info.data_dir
         dataset_name = data_info.type
+        augmented_rotation = True
+        if hasattr(cfg, "model"):
+            model_info = cfg.model
+            augmented_rotation = model_info.get('augmented_rotation', True)
         if dataset_name == '3DAP':
             train_set = _3DAPDataset(data_dir, mode='train')
             test_set = _3DAPDataset(data_dir, mode='test')
@@ -75,8 +79,8 @@ def build_dataset(cfg):
             split_json_path = None
             if hasattr(data_info, 'split_json_path'):
                 split_json_path = data_info.split_json_path
-            train_set = _CONGDataset(data_dir, mode='train', split_json_path=split_json_path)
-            test_set = _CONGDataset(data_dir, mode='valid', split_json_path=split_json_path)
+            train_set = _CONGDataset(data_dir, mode='train', split_json_path=split_json_path, augmented_rotation=augmented_rotation)
+            test_set = _CONGDataset(data_dir, mode='valid', split_json_path=split_json_path, augmented_rotation=augmented_rotation)
         elif dataset_name == "CONGDiff":
             split_json_path = None
             if hasattr(data_info, 'split_json_path'):

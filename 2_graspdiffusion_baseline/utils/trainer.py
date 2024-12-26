@@ -12,6 +12,7 @@ from pytorch3d.ops import knn_points
 
 from utils import *
 from utils.utils import IOStream
+import wandb
 
 
 DEVICE = torch.device('cuda')
@@ -36,6 +37,15 @@ class MyTrainer(object):
 
         # hyperparameters
         self.rot6d_rep = self.cfg.hyper_params.rot6d_rep
+
+        wandb.login()
+        run = wandb.init(
+            # Set the project where this run will be logged
+            project="graspdiff_contactgn",
+            # Track hyperparameters and run metadata
+            config={
+            },
+        )
         pass
 
     def log(self, content):
@@ -54,6 +64,7 @@ class MyTrainer(object):
 
         pbar = tqdm(self.train_loader)
         cnt = 0
+        losses = []
         # for file_names, ori_xyz, xyz, T, _, _ in pbar:
         for data in pbar:
             # @note for debug
@@ -77,11 +88,12 @@ class MyTrainer(object):
                 self.log("##################### Error: Loss is nan")
                 print('##################### Error: Loss is nan')
                 raise ValueError('Loss is nan')
-
             loss.backward()
             
             loss_l = loss.item()
             pbar.set_description(f'Pose loss: {loss_l:.5f}')
+            losses.append(loss_l)
+            wandb.log({"train_each_iter_loss": loss_l})
             self.optimizer.step()
             
         if self.scheduler != None:
@@ -90,6 +102,7 @@ class MyTrainer(object):
             self.model.apply(lambda x: self.bn_momentum(x, self.epoch))
         
         outstr = f"\nEpoch {self.epoch}, Last Pose loss: {loss_l:.5f}"
+        wandb.log({"train_epoch_loss": np.mean(losses)})
         self.log(outstr)
         print('Saving checkpoint')
         torch.save(self.model.state_dict(), opj(self.cfg.log_dir, 'current_model.t7'))

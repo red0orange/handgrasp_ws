@@ -46,8 +46,19 @@ class _CONGDataset(Dataset):
         pkl_data = pkl.load(open(data_file, 'rb'))
 
         obj_pc = pkl_data["sampled_pc_{}".format(self.n_pointcloud)]
-        grasp_Ts = list(pkl_data["grasps/transformations"])
-        grasp_successes = pkl_data["grasps/successes"]
+
+        grasp_Ts_key = ["grasps/transformations", "grasp/transformations"]
+        grasp_successes_key = ["grasps/successes", "grasp/successes"]
+        for key in grasp_Ts_key:
+            if key in pkl_data:
+                grasp_Ts = pkl_data[key]
+                break
+        for key in grasp_successes_key:
+            if key in pkl_data:
+                grasp_successes = pkl_data[key]
+                break
+        # grasp_Ts = list(pkl_data["grasps/transformations"])
+        # grasp_successes = pkl_data["grasps/successes"]
         # @note TODO for partial
         # rendering_pcs = pickle_data["rendering/point_clouds"]
         # rendering_camera_Ts = pickle_data["rendering/camera_poses"]
@@ -104,15 +115,20 @@ class _CONGDataset(Dataset):
 
 
 if __name__ == "__main__":
-    data_dir = "/home/huangdehao/Projects/handgrasp_ws/2_graspdiff_baseline/data/grasp_CONG_graspldm"
-    dataset = _CONGDataset(data_dir=data_dir, mode="train")
+    # vis debug
+    from roboutils.vis.viser_grasp import ViserForGrasp
+    viser = ViserForGrasp()
+
+    data_dir = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/data/grasp_contactgn"
+    split_json_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/dataset/split/contactgn_split.json"
+    dataset = _CONGDataset(data_dir=data_dir, mode="train", split_json_path=split_json_path)
 
     for data in dataset:
-        file_path, obj_pc, grasp_Ts = data
+        _, obj_pc, grasp_Ts, mesh_T, mesh_scale = data
 
-        # vis debug
-        from roboutils.vis.viser_grasp import ViserForGrasp
-        viser = ViserForGrasp()
+        obj_pc /= 8.
+        grasp_Ts[..., :3, -1] /= 8.
+
         viser.vis_grasp_scene(grasp_Ts, pc=obj_pc, max_grasp_num=50)
         viser.wait_for_reset()
         pass

@@ -21,11 +21,12 @@ from models.graspdiff.sampler import Constrained_Grasp_AnnealedLD
 from dataset._CONGDiffDataet import _CONGDiffDataset
 
 from roboutils.vis.viser_grasp import ViserForGrasp
+from roboutils.proj_llm_robot.pose_transform import update_pose
 from my_eval_oakink_only_s import OakinkGraspDataset
 
 
 def eval_for_isaacgym(work_dir):
-    save_name = "eval_oakink_cg_norandom"
+    save_name = "eval_oakink_direct_multigripper"
     config_file_path = os.path.join(work_dir, "config.py")
     checkpoint_path = os.path.join(work_dir, "current_model.t7")
     
@@ -96,14 +97,23 @@ def eval_for_isaacgym(work_dir):
             # viser_for_grasp.wait_for_reset()
         refine_palm_Ts = np.array(refine_palm_Ts)
 
-        # @note 开始预测
-        start_time = time.time()
-        xyz = xyz.float().cuda()
-        model.set_latent(xyz, batch=sample_num)
-        input_constrained_H = torch.from_numpy(refine_palm_Ts).float().cuda()
-        grasp_Ts, vis_grasp_Ts = generator.constrained_batch_sample(batch=batch, sample_num=sample_num, constrained_H=input_constrained_H, return_vis_Hs=True)
-        end_time = time.time()
-        print("Time cost: {:.3f}s".format((end_time - start_time) / batch))
+        # # @note 开始预测
+        # start_time = time.time()
+        # xyz = xyz.float().cuda()
+        # model.set_latent(xyz, batch=sample_num)
+        # input_constrained_H = torch.from_numpy(refine_palm_Ts).float().cuda()
+        # grasp_Ts, vis_grasp_Ts = generator.constrained_batch_sample(batch=batch, sample_num=sample_num, constrained_H=input_constrained_H, return_vis_Hs=True)
+        # end_time = time.time()
+        # print("Time cost: {:.3f}s".format((end_time - start_time) / batch))
+
+        for refine_i, refine_palm_T in enumerate(refine_palm_Ts):
+            refine_palm_Ts[refine_i] = update_pose(refine_palm_T, rotate=-90, rotate_axis='y')
+            refine_palm_Ts[refine_i] = update_pose(refine_palm_Ts[refine_i], rotate=-90, rotate_axis='z')
+            refine_palm_Ts[refine_i] = update_pose(refine_palm_Ts[refine_i], translate=[0, 0, -0.08*dataset.scale])
+            
+        grasp_Ts = torch.from_numpy(refine_palm_Ts)[None, ...]
+        grasp_Ts = grasp_Ts.repeat(1, each_time_sample_num, 1, 1)
+        grasp_Ts[...,:3,3] /= dataset.scale
 
         for batch_i in range(batch):
             batch_i_filename = file_paths[batch_i]
@@ -112,7 +122,6 @@ def eval_for_isaacgym(work_dir):
             batch_i_grasp_Ts = grasp_Ts[batch_i]
             batch_i_mesh_T = mesh_T[batch_i].cpu().numpy()
             batch_i_palm_T = my_palm_Ts[batch_i].cpu().numpy()
-            batch_i_vis_grasp_Ts = vis_grasp_Ts[:, batch_i, ...]
 
             batch_i_xyz = batch_i_xyz.cpu().numpy()
             batch_i_grasp_Ts = batch_i_grasp_Ts.cpu().numpy()
@@ -120,57 +129,18 @@ def eval_for_isaacgym(work_dir):
 
             vis_xyz, vis_grasp_Ts = batch_i_xyz.copy(), batch_i_grasp_Ts.copy()
             vis_xyz /= dataset.scale
-            vis_grasp_Ts[:, :3, 3] /= dataset.scale
             vis_palm_T[:3, 3] /= dataset.scale
             batch_i_mesh_T[:3, 3] /= dataset.scale
-            batch_i_vis_grasp_Ts[:, :, :3, 3] /= dataset.scale
-
-            # 
-            # selected_grasp_Ts = []
-            # for grasp_i in range(0, sample_num, each_time_sample_num):
-            #     start_idx = grasp_i
-            #     end_idx = grasp_i + each_time_sample_num
-
-            #     cur_grasp_Ts = vis_grasp_Ts[start_idx:end_idx]
-
-            #     # @note 随机选择
-            #     random_idx = np.random.choice(cur_grasp_Ts.shape[0], 1)
-            #     cur_grasp_Ts = cur_grasp_Ts[random_idx]
-            #     cur_grasp_T = cur_grasp_Ts[0]
-
-            #     selected_grasp_Ts.append(cur_grasp_T)
-            # selected_grasp_Ts = np.array(selected_grasp_Ts)
+            vis_hand_verts = hand_verts[batch_i].cpu().numpy()
+            
             selected_grasp_Ts = vis_grasp_Ts
-
-            # # debug vis 可视化 diffusion 每步的结果
-            # viser_for_grasp.vis_grasp_scene(batch_i_vis_grasp_Ts[-1, ...], pc=vis_xyz, max_grasp_num=1000)
-            # # viser_for_grasp.add_grasp(vis_palm_T, z_direction=True)
-            # viser_for_grasp.wait_for_reset()
-            # viser_for_grasp.set_grasp_diffusion_steps(time_grasp_Ts=batch_i_vis_grasp_Ts, obj_xyz=vis_xyz)
-            # input("any key to continue")
-
-            # images = viser_for_grasp.get_grasp_diffusion_steps_images()
-            # from PIL import Image
-            # def numpy_images_to_gif(numpy_images, gif_name, duration=200):
-            #     # 将 numpy 数组转换为 PIL 图像
-            #     pil_images = [Image.fromarray(img.astype(np.uint8)) for img in numpy_images]
-                
-            #     # 保存为GIF
-            #     pil_images[0].save(gif_name, save_all=True, append_images=pil_images[1:], duration=duration, loop=0)
-            #     print(f"GIF 已保存为 {gif_name}")
-            # numpy_images_to_gif(images, os.path.join(work_dir, f"vis_cg.gif"))
-
-
-            # for time_i in range(batch_i_vis_grasp_Ts.shape[0]):
-            #     cur_vis_grasp_Ts = batch_i_vis_grasp_Ts[time_i]
-            #     viser_for_grasp.vis_grasp_scene(cur_vis_grasp_Ts, pc=vis_xyz, max_grasp_num=1000)
-            #     # viser_for_grasp.add_grasp(vis_palm_T, z_direction=True)
-            #     viser_for_grasp.wait_for_reset()
 
             # # debug vis
             # # viser_for_grasp.vis_grasp_scene(vis_grasp_Ts, pc=vis_xyz, max_grasp_num=1000)
             # # viser_for_grasp.wait_for_reset()
             # viser_for_grasp.vis_grasp_scene(selected_grasp_Ts, pc=vis_xyz, max_grasp_num=1000)
+            # viser_for_grasp.add_pcd(vis_hand_verts, colors=np.array([(0, 255, 0)]*vis_hand_verts.shape[0]))
+            # viser_for_grasp.add_crood(selected_grasp_Ts[0])
             # # viser_for_grasp.add_grasp(vis_palm_T, z_direction=True)
             # viser_for_grasp.wait_for_reset()
 

@@ -58,6 +58,18 @@
             "justMyCode": false
         },
         {
+            "name": "my train contactgn",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "my_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--config", 
+                "${workspaceFolder}/config/my_detectiondiffusion_contactgn.py",
+            ],
+            "justMyCode": false
+        },
+        {
             "name": "my train grasp diffusion",
             "type": "debugpy",
             "request": "launch",

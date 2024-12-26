@@ -223,7 +223,7 @@ class GraspRefineScoreNet(nn.Module):
     def trans_relu_func(self, x, center_x_range=0.01*8.0):
         return self.trans_relu(x-center_x_range)
 
-    def evaluate(self, H, H_i):
+    def evaluate(self, H, H_i, only_trans=False, dataset_scale=8.0, rot_range=np.pi/4.0):
         # 用于 SeE 评估，判断是否在 rot, trans 范围内
         g_translation = H[:, :3, 3]
         g_i_translation = H_i[:, :3, 3]
@@ -233,7 +233,7 @@ class GraspRefineScoreNet(nn.Module):
         g_T[:, :3, :3] = g_rotation_matrix
         g_T[:, :3, 3] = g_translation
         gripper_depth_T = torch.eye(4, device=H.device)
-        gripper_depth_T[2, 3] = 0.08 * 8.0  # @note 注意，考虑上 dataset scale 的计算
+        gripper_depth_T[2, 3] = 0.08 * dataset_scale  # @note 注意，考虑上 dataset scale 的计算
         g_T = torch.einsum('bij,jk->bik', g_T, gripper_depth_T)
         g_translation = g_T[:, :3, 3]
 
@@ -247,9 +247,12 @@ class GraspRefineScoreNet(nn.Module):
         z_angles = torch.acos(torch.clamp(torch.sum(g_rotation_z_axis * g_i_rotation_z_axis, dim=1), -1 + eps, 1 - eps))
         z_angles = torch.abs(z_angles)
 
-        rot_range_idx = (z_angles < np.pi / 4.0)
-        trans_range_idx = (torch.norm(g_translation - g_i_translation, dim=1) < 0.05*8.0)
-        final_idx = (rot_range_idx & trans_range_idx)
+        rot_range_idx = (z_angles < rot_range)
+        trans_range_idx = (torch.norm(g_translation - g_i_translation, dim=1) < 0.05*dataset_scale)
+        if only_trans:
+            final_idx = trans_range_idx
+        else:
+            final_idx = (rot_range_idx & trans_range_idx)
         return final_idx
 
     def forward(self, H, H_i):

@@ -17,8 +17,11 @@ if __name__ == '__main__':
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241019-115052_detectiondiffusion/eval_oakink_only_s_isaacgym.npy"
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_599_20241026-145515_grasp_diffusion_baseline/graspdiff_eval_cong_isaacgym.npy"
     # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_599_20241026-145515_grasp_diffusion_baseline/eval_cong_split_final_isaacgym.npy"
-    test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion/contactgn_oakink_best_isaacgym.npy"
-    save_name = "contactgn_oakink_best_isaacgym_results"
+    test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_499_20241029-103352_grasp_diffusion_baseline/eval_oakink_direct_multigripper_isaacgym.npy"
+    save_name = "eval_oakink_direct_multigripper_isaacgym_results"
+    # test_data_path = "/home/red0orange/Projects/handgrasp_ws/2_graspdiffusion_baseline/log_remote/epoch_299_20241008-111209_detectiondiffusion/multi_view_contactgn_oakink_best_isaacgym.npy"
+    # save_name = "multi_view_contactgn_oakink_best_isaacgym_results"
+    
     # save_name = "eval_cong_fix_initial_results"
     # save_name = "eval_cong_split_final_results"
     # save_name = "eval_oakink_cg_norandom_results"
